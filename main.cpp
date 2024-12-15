@@ -1,6 +1,6 @@
 #define FILL_COLOR 0xAA22BB
 #define BORDER_COLOR 0x000000
-#define WIREFRAME_ACTIVE true
+#define FILE_TO_IMPORT "church.obj"
 
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -56,9 +56,9 @@ void multiply_matrix_vector(vec3d &i, vec3d &o, mat4x4 &m) {
 }
 
 class XlibApp {
-
+  
 public:
-
+  
   int sgn(int x)
   {
     if (x > 0) return +1;
@@ -213,11 +213,10 @@ public:
 	int f[3];
 
 	s >> junk >> f[0] >> f[1] >> f[2];
-
-	output.tris.push_back({vertices[f[0] - 1], vertices[f[1] - 1] , vertices[f[2] -1]});
+	
+	output.tris.push_back({ vertices[f[0] - 1], vertices[f[1] - 1], vertices[f[2] - 1] , 0x000000 });
 
       }
-
       
     }
     
@@ -338,7 +337,7 @@ public:
     
     gc = XCreateGC(display, window, 0, nullptr);
     
-    /*meshCube.tris = {
+    /*    meshCube.tris = {
       
       { 0.0f, 0.0f, 0.0f,    0.0f, 1.0f, 0.0f,    1.0f, 1.0f, 0.0f },
       { 0.0f, 0.0f, 0.0f,    1.0f, 1.0f, 0.0f,    1.0f, 0.0f, 0.0f },
@@ -358,11 +357,11 @@ public:
       { 1.0f, 0.0f, 1.0f,    0.0f, 0.0f, 1.0f,    0.0f, 0.0f, 0.0f },
       { 1.0f, 0.0f, 1.0f,    0.0f, 0.0f, 0.0f,    1.0f, 0.0f, 0.0f },
       
-    };
-    */
+    };*/
 
 
-    meshCube = import_obj_mesh("render.obj");
+
+    meshCube = import_obj_mesh(FILE_TO_IMPORT);
     
   }
   
@@ -421,6 +420,8 @@ public:
   
   void render_screen() {
 
+
+    
     int x, y; 
     unsigned int border_width, depth;
     
@@ -430,8 +431,8 @@ public:
       std::cerr << "Failed to get window geometry" << std::endl;
     }
     
-    XSetForeground(display, DefaultGC(display, screen), WhitePixel(display, screen));
-    XFillRectangle(display, window, DefaultGC(display, screen), 0, 0, height, width);
+    XSetForeground(display, gc , 0x000000);
+    XFillRectangle(display, window, gc , 0, 0, width, height);
     
     matProj.m[0][0] = fAspectRatio * fFovRad;
     matProj.m[1][1] = fFovRad;
@@ -458,11 +459,12 @@ public:
     std::vector<triangle> v_want_to_draw;
     
     for(auto tri : meshCube.tris) {
+
+
       
       triangle triProjected;
       triangle triTranslated;
       triangle triRotatedZ;
-      triangle triRotatedX;
       triangle triRotatedZX;
       
       multiply_matrix_vector(tri.p[0],triRotatedZ.p[0], matRotZ);
@@ -474,9 +476,9 @@ public:
       multiply_matrix_vector(triRotatedZ.p[2],triRotatedZX.p[2], matRotX);
       
       triTranslated = triRotatedZX;
-      triTranslated.p[0].z =  triRotatedZX.p[0].z + 4.0f;
-      triTranslated.p[1].z =  triRotatedZX.p[1].z + 4.0f;
-      triTranslated.p[2].z =  triRotatedZX.p[2].z + 4.0f;
+      triTranslated.p[0].z =  triRotatedZX.p[0].z + 200.0f;
+      triTranslated.p[1].z =  triRotatedZX.p[1].z + 200.0f;
+      triTranslated.p[2].z =  triRotatedZX.p[2].z + 200.0f;
 
       vec3d normal, vec1, vec2;
 
@@ -501,6 +503,8 @@ public:
 	 normal.z * (triTranslated.p[0].z - camera.z) < 0.0f)
 	{
 
+
+	  
 	  vec3d light_source = { 0.0f, 0.0f, -1.0f };
 
 	  float l = sqrtf(light_source.x*light_source.x + light_source.y*light_source.y + light_source.z*light_source.z);
@@ -568,11 +572,11 @@ public:
 			  (unsigned int)triProjected.p[2].y,
 			  triProjected.col_rgb);
       
-      if (WIREFRAME_ACTIVE == true) {
+      if(wireframe_active){
 	draw_triangle(triProjected.p[0].x, triProjected.p[0].y,
 		      triProjected.p[1].x, triProjected.p[1].y,
 		      triProjected.p[2].x, triProjected.p[2].y);
-      }
+      }      
       
     }
     
@@ -582,6 +586,11 @@ public:
   }    
   
   void run() {
+
+    camera.x = 0.0f;
+    camera.y = 0.0f;
+    camera.z = 0.0f;
+    
     XEvent event;
     while (true) {
       XNextEvent(display, &event);
@@ -629,7 +638,7 @@ public:
 	  
 	} else if (key == XK_f) {
 	  
-	 
+	  wireframe_active = !wireframe_active;
 	  
 	} else if (key == XK_x) {
 	  break; 
@@ -643,6 +652,9 @@ public:
   
   
 private:
+
+  bool wireframe_active = true;
+
   Display* display;
   Window window;
   GC gc;
@@ -678,6 +690,8 @@ private:
   float fAspectRatio = (float)height / (float)width;
   
   float fFovRad = 1.0f / tanf( fFov * 0.5f / 180.0f * 3.14159f );
+
+
   
 };
 
