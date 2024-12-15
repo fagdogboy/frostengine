@@ -1,3 +1,7 @@
+#define FILL_COLOR 0xAA22BB
+#define BORDER_COLOR 0x000000
+
+
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <iostream>
@@ -57,7 +61,9 @@ public:
   }
 
   //this is a nightmare
-  void draw_bresenham_line(unsigned int start_x, unsigned int start_y, unsigned int end_x, unsigned int end_y) {
+  void draw_bresenham_line(unsigned int start_x, unsigned int start_y, unsigned int end_x, unsigned int end_y, unsigned long color) {
+
+    XSetForeground(display,gc,color);
     
     int x, y, t, dx, dy, incx, incy, pdx, pdy, ddx, ddy, deltaslowdirection, deltafastdirection, err;
     
@@ -117,40 +123,109 @@ public:
   // i mog nimma :(
   void draw_filled_in_triangle (unsigned int x1, unsigned int x2, unsigned int x3, unsigned int y1, unsigned int y2, unsigned int y3 ) {
 
+    printf("Debugging Parameters, draw_filled_tri and:\n");
+    printf("x1: %u, y1: %u\n", x1, y1);
+    printf("x2: %u, y2: %u\n", x2, y2);
+    printf("x3: %u, y3: %u\n", x3, y3);
+    
+    float fx1 = x1;
+    float fx2 = x2;
+    float fx3 = x3;
+    float fy1 = y1;
+    float fy2 = y2;
+    float fy3 = y3;
+    
+    std::cout << "drawing filled tri" << std::endl;
+    
     unsigned int s_buf;
     
-    if(y1 > y2) { s_buf = y1; y1 = y2 ; y2 = s_buf; }
-    if(y2 > y3) { s_buf = y2; y2 = y3 ; y3 = s_buf; }
+    if(fy1 > fy2) { s_buf = fy1; fy1 = fy2 ; fy2 = s_buf; }
+    if(fy2 > fy3) { s_buf = fy2; fy2 = fy3 ; fy3 = s_buf; }
     
-    if (y2 == y1)
+    if (fy2 == fy1)
       {
-	fill_bottom_triangle(x1,y1,x2,y2,x3,y3);
+	std::cout << "bottom triangle! " << std::endl;
+	
+	fill_bottom_triangle(fx1,fy1,fx2,fy2,fx3,fy3);
       }
     
-    if (y2 == y3)
+    if (fy2 == fy3)
       {
-	fill_top_triangle(x1,y1,x2,y2,x3,y3);
+	std::cout << "top triangle! " << std::endl;
+		
+	fill_top_triangle(fx1,fy1,fx2,fy2,fx3,fy3);
       }
     
-    unsigned int x4,y4;
+    float fx4,fy4;
+
+    //    if(x1 == 0.0f || x2 == 0.0f || x3 == 0.0f || y1 == 0.0f || y2 == 0.0f || y3 == 0.0f) 
     
-    x4 = (unsigned int)(x1 + ((float)(y2 - y1) / (float)(y3 - y1)) * (x3 - x1));
-    y4 = y2;
+    fx4 = (fx1 + ((float)(fy2 - fy1) / (float)(fy3 - fy1)) * (fx3 - fx1));
+    fy4 = fy2;
+
+    fill_bottom_triangle(fx1,fy1,fx4,fy4,fx3,fy3);
+    fill_top_triangle(fx1,fy1,fx4,fy4,fx3,fy3);
     
   }
+
+  void draw_horizontal_line(unsigned int x1, unsigned int x2, unsigned int y1, unsigned int y2, unsigned long color) {
+
+    XSetForeground(display,gc,color);
+    
+    XDrawLine(display,window,gc,x1,y1,x2,y2);
+
+  }
+
+  void tmp_draw_filled_tri(unsigned int v1x, unsigned int v2x, unsigned int v3x, unsigned int v1y, unsigned int v2y, unsigned int v3y, unsigned long color) {
+
+    XSetForeground(display,gc,color);
+    
+    XPoint triangle[3];
+    triangle[0].x = v1x; triangle[0].y = v1y;
+    triangle[1].x = v2x; triangle[1].y = v2y;
+    triangle[2].x = v3x; triangle[2].y = v3y;
+    
+    XFillPolygon(display,window,gc, triangle, 3, 2, 0);
+
+  }
   
-  void fill_top_triangle(unsigned int v1x,unsigned int v1y,unsigned int v2x,unsigned int v2y,unsigned int v3x,unsigned int v3y) {
+  void fill_top_triangle(unsigned int v1x, unsigned int v1y, unsigned int v2x, unsigned int v2y, unsigned int v3x, unsigned int v3y) {
+
+    float fv1x = (float) v1x;
+    float fv1y = (float) v1y;
+    float fv2x = (float) v2x;
+    float fv2y = (float) v2y;    
+    float fv3x = (float) v3x;
+    float fv3y = (float) v3y;
     
-    float invslope1 = (v3x - v1x) / (v3y - v1y);
-    float invslope2 = (v3x - v2x) / (v3y - v2y);
+    printf("Parameters received:\n");
+    printf("v1x: %u, v1y: %u\n", v1x, v1y);
+    printf("v2x: %u, v2y: %u\n", v2x, v2y);
+    printf("v3x: %u, v3y: %u\n", v3x, v3y);
     
-    float curx1 = v3x;
-    float curx2 = v3x;
+    float invslope1,invslope2;
     
-    for (int scanlineY = v3y; scanlineY > v1y; scanlineY--)
+    if (fv3y != fv1y) {
+      invslope1 = (fv3x - fv1x) / (fv3y - fv1y);
+    } else {
+      fv1y = fv1y + 0.1f;
+      invslope1 = (fv3x - fv1x) / (fv3y - fv1y);
+    }
+    
+    if (fv3y != fv2y) {
+      invslope2 = (fv3x - fv2x) / (fv3y - fv2y);
+    } else {
+      fv1y = fv1y + 0.1f;
+      invslope2 = (fv3x - fv2x) / (fv3y - fv2y);
+    }
+        
+    float curx1 = fv3x;
+    float curx2 = fv3x;
+    
+    for (int scanlineY = fv3y; scanlineY > fv1y; scanlineY--)
       {
 	
-	draw_bresenham_line((unsigned int)curx1, (unsigned int)scanlineY, (unsigned int)curx2, (unsigned int)scanlineY);
+	draw_horizontal_line((unsigned int)curx1, (unsigned int)scanlineY, (unsigned int)curx2, (unsigned int)scanlineY, FILL_COLOR);
 	curx1 -= invslope1;
 	curx2 -= invslope2;
 	
@@ -159,15 +234,34 @@ public:
   
   void fill_bottom_triangle(unsigned int v1x,unsigned int v1y,unsigned int v2x,unsigned int v2y,unsigned int v3x,unsigned int v3y) {
 
-    float invslope1 = (v2x - v1x) / (v2y - v1y);
-    float invslope2 = (v3x - v1x) / (v3y - v1y);
+    float fv1x = (float) v1x;
+    float fv1y = (float) v1y;
+    float fv2x = (float) v2x;
+    float fv2y = (float) v2y;    
+    float fv3x = (float) v3x;
+    float fv3y = (float) v3y;
+
+    float invslope1,invslope2;
+    if(fv2y != fv1y) {
+      invslope1 = (fv2x - fv1x) / (fv2y - fv1y);
+    } else {
+      fv1y = fv1y + 0.1f;
+      invslope1 = (fv2x - fv1x) / (fv2y - fv1y);
+    }
+
+    if(fv3y !=fv1y) {
+      invslope2 = (fv3x - fv1x) / (fv3y - fv1y);
+    } else {
+      fv1y = fv1y + 0.1f;
+      invslope2 = (fv3x - fv1x) / (fv3y - fv1y);
+    }
     
-    float curx1 = v1x;
-    float curx2 = v1x;
+    float curx1 = fv1x;
+    float curx2 = fv1x;
     
-    for (int scanlineY = v1y; scanlineY <= v2y; scanlineY++)
+    for (int scanlineY = fv1y; scanlineY <= fv2y; scanlineY++)
       {	
-	draw_bresenham_line((unsigned int)curx1, (unsigned int)scanlineY, (unsigned int)curx2, (unsigned int)scanlineY);
+	draw_horizontal_line((unsigned int)curx1, (unsigned int)scanlineY, (unsigned int)curx2, (unsigned int)scanlineY, FILL_COLOR);
 	curx1 += invslope1;
 	curx2 += invslope2;
       }
@@ -236,9 +330,9 @@ public:
     
     printf("rendering Coordinates: (%d, %d), (%d, %d), (%d, %d)\n", x1, y1, x2, y2, x3, y3);
     
-    draw_bresenham_line(x1, y1, x2, y2);
-    draw_bresenham_line(x2, y2, x3, y3); 
-    draw_bresenham_line(x3, y3, x1, y1);
+    draw_bresenham_line(x1, y1, x2, y2, BORDER_COLOR);
+    draw_bresenham_line(x2, y2, x3, y3, BORDER_COLOR); 
+    draw_bresenham_line(x3, y3, x1, y1, BORDER_COLOR);
     XFlush(display);
   }
   
@@ -325,30 +419,38 @@ public:
 
       if(normal.x * (triTranslated.p[0].x - camera.x) + 
 	 normal.y * (triTranslated.p[0].y - camera.y) +
-	 normal.z * (triTranslated.p[0].z - camera.z) >= 0.0f)
-	{continue;}
+	 normal.z * (triTranslated.p[0].z - camera.z) < 0.0f)
+	{
 	  
-      multiply_matrix_vector(triTranslated.p[0],triProjected.p[0], matProj);
-      multiply_matrix_vector(triTranslated.p[1],triProjected.p[1], matProj);
-      multiply_matrix_vector(triTranslated.p[2],triProjected.p[2], matProj);
-      
-      triProjected.p[0].x += 1.0f; triProjected.p[0].y += 1.0f;
-      triProjected.p[1].x += 1.0f; triProjected.p[1].y += 1.0f;
-      triProjected.p[2].x += 1.0f; triProjected.p[2].y += 1.0f;
-      
-      triProjected.p[0].x *= 0.5f * (float)width;
-      triProjected.p[0].y *= 0.5f * (float)height;
-      
-      triProjected.p[1].x *= 0.5f * (float)width;
-      triProjected.p[1].y *= 0.5f * (float)height;
-      
-      triProjected.p[2].x *= 0.5f * (float)width;
-      triProjected.p[2].y *= 0.5f * (float)height;
-      
-      draw_triangle(triProjected.p[0].x, triProjected.p[0].y,
-		    triProjected.p[1].x, triProjected.p[1].y,
-		    triProjected.p[2].x, triProjected.p[2].y);
-      
+	  multiply_matrix_vector(triTranslated.p[0],triProjected.p[0], matProj);
+	  multiply_matrix_vector(triTranslated.p[1],triProjected.p[1], matProj);
+	  multiply_matrix_vector(triTranslated.p[2],triProjected.p[2], matProj);
+	  
+	  triProjected.p[0].x += 1.0f; triProjected.p[0].y += 1.0f;
+	  triProjected.p[1].x += 1.0f; triProjected.p[1].y += 1.0f;
+	  triProjected.p[2].x += 1.0f; triProjected.p[2].y += 1.0f;
+	  
+	  triProjected.p[0].x *= 0.5f * (float)width;
+	  triProjected.p[0].y *= 0.5f * (float)height;
+	  
+	  triProjected.p[1].x *= 0.5f * (float)width;
+	  triProjected.p[1].y *= 0.5f * (float)height;
+	  
+	  triProjected.p[2].x *= 0.5f * (float)width;
+	  triProjected.p[2].y *= 0.5f * (float)height;
+	  
+	  tmp_draw_filled_tri((unsigned int)triProjected.p[0].x,
+			      (unsigned int)triProjected.p[1].x,
+			      (unsigned int)triProjected.p[2].x,
+			      (unsigned int)triProjected.p[0].y,
+			      (unsigned int)triProjected.p[1].y,
+			      (unsigned int)triProjected.p[2].y,
+			      0xAA11AA);
+	  
+	  draw_triangle(triProjected.p[0].x, triProjected.p[0].y,
+			triProjected.p[1].x, triProjected.p[1].y,
+			triProjected.p[2].x, triProjected.p[2].y);
+	}      
     }
     
     XFlush(display);
