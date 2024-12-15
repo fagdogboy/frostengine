@@ -1,6 +1,6 @@
 #define FILL_COLOR 0xAA22BB
 #define BORDER_COLOR 0x000000
-#define FILE_TO_IMPORT "church.obj"
+#define FILE_TO_IMPORT "keyboard.obj"
 
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -11,6 +11,8 @@
 #include <fstream>
 #include <strstream>
 #include <algorithm>
+#include <chrono>
+#include <thread>
 
 struct vec3d {
 
@@ -223,6 +225,49 @@ public:
     return output;
 
   }
+
+  void try_to_render_screen() {
+
+    printf("attempting rendering \n");
+    
+    try_to_draw = true;
+
+  }
+
+  void window_runtime_helper() {
+
+    printf("runtime helper start! \n");
+    
+    while(!shutdown) {
+      
+      if(draw_cooldown){
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+	draw_cooldown = false;
+	printf("no \n");
+
+      }
+      if(!draw_cooldown && try_to_draw) {
+	draw_cooldown = true;
+	try_to_draw = false;
+	printf("yes \n");
+
+	render_screen();
+
+      } else {
+
+	printf("rendering attempt started, but rendering on cooldown! \n");
+	
+      }
+
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      
+    }
+
+    return;
+
+  }
+  
   
   void tmp_draw_filled_tri(unsigned int v1x, unsigned int v2x, unsigned int v3x, unsigned int v1y, unsigned int v2y, unsigned int v3y, unsigned long color) {
 
@@ -337,7 +382,7 @@ public:
     
     gc = XCreateGC(display, window, 0, nullptr);
     
-    /*    meshCube.tris = {
+    /*    loaded_mesh.tris = {
       
       { 0.0f, 0.0f, 0.0f,    0.0f, 1.0f, 0.0f,    1.0f, 1.0f, 0.0f },
       { 0.0f, 0.0f, 0.0f,    1.0f, 1.0f, 0.0f,    1.0f, 0.0f, 0.0f },
@@ -361,11 +406,12 @@ public:
 
 
 
-    meshCube = import_obj_mesh(FILE_TO_IMPORT);
+    loaded_mesh = import_obj_mesh(FILE_TO_IMPORT);
     
   }
   
   ~XlibApp() {
+    shutdown = true;
     XFreeGC(display, gc);
     XDestroyWindow(display, window);
     XCloseDisplay(display);
@@ -458,7 +504,7 @@ public:
 
     std::vector<triangle> v_want_to_draw;
     
-    for(auto tri : meshCube.tris) {
+    for(auto tri : loaded_mesh.tris) {
 
 
       
@@ -476,9 +522,9 @@ public:
       multiply_matrix_vector(triRotatedZ.p[2],triRotatedZX.p[2], matRotX);
       
       triTranslated = triRotatedZX;
-      triTranslated.p[0].z =  triRotatedZX.p[0].z + 200.0f;
-      triTranslated.p[1].z =  triRotatedZX.p[1].z + 200.0f;
-      triTranslated.p[2].z =  triRotatedZX.p[2].z + 200.0f;
+      triTranslated.p[0].z =  triRotatedZX.p[0].z + 4.0f;
+      triTranslated.p[1].z =  triRotatedZX.p[1].z + 4.0f;
+      triTranslated.p[2].z =  triRotatedZX.p[2].z + 4.0f;
 
       vec3d normal, vec1, vec2;
 
@@ -587,6 +633,10 @@ public:
   
   void run() {
 
+    printf("launching draw helper! \n");
+    
+    std::thread t(&XlibApp::window_runtime_helper,this);
+    
     camera.x = 0.0f;
     camera.y = 0.0f;
     camera.z = 0.0f;
@@ -605,7 +655,7 @@ public:
 	  std::cerr << "Failed to get window geometry" << std::endl;
 	}
 	
-	render_screen();
+        try_to_render_screen();
 	
       }
       
@@ -614,25 +664,25 @@ public:
 	
 	if (key == XK_w) {
 	  
-	  fThetaX -= 0.1;
+	  fThetaX -= 0.3;
 	  
 	  std::cout << "X incremented: " << fThetaX << std::endl;
 	  
 	} else if (key == XK_a) {
 	  
-	  fThetaY -= 0.1;
+	  fThetaY -= 0.3;
 	  
 	  std::cout << "Y incremented: " << fThetaY << std::endl;
 	  
 	} else if (key == XK_s) {
 	  
-	  fThetaX += 0.1;
+	  fThetaX += 0.3;
 	  
 	  std::cout << "X decremented: " << fThetaX << std::endl;
 	  
 	} else if (key == XK_d) {
 	  
-	  fThetaY += 0.1;
+	  fThetaY += 0.3;
 	  
 	  std::cout << "Y decremented: " << fThetaY << std::endl;
 	  
@@ -644,10 +694,12 @@ public:
 	  break; 
 	}
 	
-	render_screen();
+        try_to_render_screen();
 	
       }
+
     }
+    
   }
   
   
@@ -673,7 +725,7 @@ private:
 
   float fPosition_Z;
   
-  mesh meshCube;
+  mesh loaded_mesh;
     
   float fNear = 0.1f;
   
@@ -691,7 +743,11 @@ private:
   
   float fFovRad = 1.0f / tanf( fFov * 0.5f / 180.0f * 3.14159f );
 
+  bool try_to_draw;
 
+  bool draw_cooldown = false;
+
+  bool shutdown = false;
   
 };
 
