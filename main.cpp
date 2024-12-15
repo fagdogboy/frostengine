@@ -1,12 +1,16 @@
 #define FILL_COLOR 0xAA22BB
 #define BORDER_COLOR 0x000000
-
+#define WIREFRAME_ACTIVE true
 
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <iostream>
 #include <vector>
 #include "math.h"
+#include <sstream>
+#include <fstream>
+#include <strstream>
+#include <algorithm>
 
 struct vec3d {
 
@@ -17,6 +21,8 @@ struct vec3d {
 struct triangle {
   
   vec3d p[3];
+
+  unsigned long col_rgb;
   
 };
 
@@ -123,11 +129,6 @@ public:
   // i mog nimma :(
   void draw_filled_in_triangle (unsigned int x1, unsigned int x2, unsigned int x3, unsigned int y1, unsigned int y2, unsigned int y3 ) {
 
-    printf("Debugging Parameters, draw_filled_tri and:\n");
-    printf("x1: %u, y1: %u\n", x1, y1);
-    printf("x2: %u, y2: %u\n", x2, y2);
-    printf("x3: %u, y3: %u\n", x3, y3);
-    
     float fx1 = x1;
     float fx2 = x2;
     float fx3 = x3;
@@ -176,6 +177,54 @@ public:
 
   }
 
+  mesh import_obj_mesh(std::string file_path) {
+
+    mesh output;
+    
+    std::ifstream file(file_path);
+    if(!file.is_open())
+      std::cout << "imort mesh not found!!!" << std::endl;
+
+    std::vector<vec3d> vertices;
+    
+    while(!file.eof()) {
+
+      char line[1024];
+      file.getline(line,1024);
+
+      std::strstream s;
+
+      s << line;
+
+      char junk;
+
+      if(line[0] == 'v') {
+
+	vec3d vec;
+
+	s >> junk >> vec.x >> vec.y >> vec.z;
+
+        vertices.push_back(vec);
+
+      }
+      
+      if(line[0] == 'f') {
+
+	int f[3];
+
+	s >> junk >> f[0] >> f[1] >> f[2];
+
+	output.tris.push_back({vertices[f[0] - 1], vertices[f[1] - 1] , vertices[f[2] -1]});
+
+      }
+
+      
+    }
+    
+    return output;
+
+  }
+  
   void tmp_draw_filled_tri(unsigned int v1x, unsigned int v2x, unsigned int v3x, unsigned int v1y, unsigned int v2y, unsigned int v3y, unsigned long color) {
 
     XSetForeground(display,gc,color);
@@ -197,11 +246,6 @@ public:
     float fv2y = (float) v2y;    
     float fv3x = (float) v3x;
     float fv3y = (float) v3y;
-    
-    printf("Parameters received:\n");
-    printf("v1x: %u, v1y: %u\n", v1x, v1y);
-    printf("v2x: %u, v2y: %u\n", v2x, v2y);
-    printf("v3x: %u, v3y: %u\n", v3x, v3y);
     
     float invslope1,invslope2;
     
@@ -294,7 +338,7 @@ public:
     
     gc = XCreateGC(display, window, 0, nullptr);
     
-    meshCube.tris = {
+    /*meshCube.tris = {
       
       { 0.0f, 0.0f, 0.0f,    0.0f, 1.0f, 0.0f,    1.0f, 1.0f, 0.0f },
       { 0.0f, 0.0f, 0.0f,    1.0f, 1.0f, 0.0f,    1.0f, 0.0f, 0.0f },
@@ -315,6 +359,10 @@ public:
       { 1.0f, 0.0f, 1.0f,    0.0f, 0.0f, 0.0f,    1.0f, 0.0f, 0.0f },
       
     };
+    */
+
+
+    meshCube = import_obj_mesh("render.obj");
     
   }
   
@@ -323,12 +371,32 @@ public:
     XDestroyWindow(display, window);
     XCloseDisplay(display);
   }
+
+  
+  unsigned long construct_rgb_value(unsigned long r, unsigned long g, unsigned long b) {
+    return (
+	    static_cast<unsigned int>(r) << 16) | 
+      (static_cast<unsigned int>(g) << 8) | 
+      (static_cast<unsigned int>(b));
+  }
+  
+  unsigned long float_to_rgb_grayscale(float input) {
+
+    unsigned long output;
+
+    unsigned long tmp;
+    
+    tmp = ((255) / 1.0f) * (input);
+      
+    output = construct_rgb_value(tmp,tmp,tmp);
+   
+    return output;
+
+  }
   
   void draw_triangle(int x1, int y1, int x2, int y2, int x3, int y3) {
     
     XSetForeground(display, gc, BlackPixel(display, DefaultScreen(display)));
-    
-    printf("rendering Coordinates: (%d, %d), (%d, %d), (%d, %d)\n", x1, y1, x2, y2, x3, y3);
     
     draw_bresenham_line(x1, y1, x2, y2, BORDER_COLOR);
     draw_bresenham_line(x2, y2, x3, y3, BORDER_COLOR); 
@@ -352,6 +420,15 @@ public:
   }
   
   void render_screen() {
+
+    int x, y; 
+    unsigned int border_width, depth;
+    
+    if (XGetGeometry(display, window, &root, &x, &y, &width, &height, &border_width, &depth)) {
+      std::cout << "Window size: " << width << "x" << height << std::endl;
+    } else {
+      std::cerr << "Failed to get window geometry" << std::endl;
+    }
     
     XSetForeground(display, DefaultGC(display, screen), WhitePixel(display, screen));
     XFillRectangle(display, window, DefaultGC(display, screen), 0, 0, height, width);
@@ -377,6 +454,8 @@ public:
     matRotX.m[2][2] = cosf(fThetaX * 0.5f);
     matRotX.m[3][3] = 1;
     
+
+    std::vector<triangle> v_want_to_draw;
     
     for(auto tri : meshCube.tris) {
       
@@ -395,9 +474,9 @@ public:
       multiply_matrix_vector(triRotatedZ.p[2],triRotatedZX.p[2], matRotX);
       
       triTranslated = triRotatedZX;
-      triTranslated.p[0].z =  triRotatedZX.p[0].z + 2.0f;
-      triTranslated.p[1].z =  triRotatedZX.p[1].z + 2.0f;
-      triTranslated.p[2].z =  triRotatedZX.p[2].z + 2.0f;
+      triTranslated.p[0].z =  triRotatedZX.p[0].z + 4.0f;
+      triTranslated.p[1].z =  triRotatedZX.p[1].z + 4.0f;
+      triTranslated.p[2].z =  triRotatedZX.p[2].z + 4.0f;
 
       vec3d normal, vec1, vec2;
 
@@ -421,10 +500,21 @@ public:
 	 normal.y * (triTranslated.p[0].y - camera.y) +
 	 normal.z * (triTranslated.p[0].z - camera.z) < 0.0f)
 	{
+
+	  vec3d light_source = { 0.0f, 0.0f, -1.0f };
+
+	  float l = sqrtf(light_source.x*light_source.x + light_source.y*light_source.y + light_source.z*light_source.z);
+	  light_source.x /= l; light_source.y /= l; light_source.z /= l;
+
+	  float dp_light = normal.x * light_source.x + normal.y * light_source.y + normal.z * light_source.z;
+
+	  triTranslated.col_rgb  = float_to_rgb_grayscale( dp_light );
 	  
 	  multiply_matrix_vector(triTranslated.p[0],triProjected.p[0], matProj);
 	  multiply_matrix_vector(triTranslated.p[1],triProjected.p[1], matProj);
 	  multiply_matrix_vector(triTranslated.p[2],triProjected.p[2], matProj);
+
+	  triProjected.col_rgb = triTranslated.col_rgb;
 	  
 	  triProjected.p[0].x += 1.0f; triProjected.p[0].y += 1.0f;
 	  triProjected.p[1].x += 1.0f; triProjected.p[1].y += 1.0f;
@@ -438,20 +528,54 @@ public:
 	  
 	  triProjected.p[2].x *= 0.5f * (float)width;
 	  triProjected.p[2].y *= 0.5f * (float)height;
+
+	  v_want_to_draw.push_back(triProjected);
 	  
-	  tmp_draw_filled_tri((unsigned int)triProjected.p[0].x,
+	  /* tmp_draw_filled_tri((unsigned int)triProjected.p[0].x,
 			      (unsigned int)triProjected.p[1].x,
 			      (unsigned int)triProjected.p[2].x,
 			      (unsigned int)triProjected.p[0].y,
 			      (unsigned int)triProjected.p[1].y,
 			      (unsigned int)triProjected.p[2].y,
-			      0xAA11AA);
+			      triProjected.col_rgb);
 	  
 	  draw_triangle(triProjected.p[0].x, triProjected.p[0].y,
 			triProjected.p[1].x, triProjected.p[1].y,
 			triProjected.p[2].x, triProjected.p[2].y);
+	  */
+
+
 	}      
     }
+
+    //shoutout to stdlib
+    sort(v_want_to_draw.begin(), v_want_to_draw.end(), [](triangle &t1, triangle &t2) {
+
+      float z1 = (t1.p[0].z + t1.p[1].z + t1.p[2].z) / 3.0f;
+      float z2 = (t2.p[0].z + t2.p[1].z + t2.p[2].z) / 3.0f;
+
+      return z1 > z2;
+
+    });
+    
+    for(auto &triProjected : v_want_to_draw) {
+
+      tmp_draw_filled_tri((unsigned int)triProjected.p[0].x,
+			  (unsigned int)triProjected.p[1].x,
+			  (unsigned int)triProjected.p[2].x,
+			  (unsigned int)triProjected.p[0].y,
+			  (unsigned int)triProjected.p[1].y,
+			  (unsigned int)triProjected.p[2].y,
+			  triProjected.col_rgb);
+      
+      if (WIREFRAME_ACTIVE == true) {
+	draw_triangle(triProjected.p[0].x, triProjected.p[0].y,
+		      triProjected.p[1].x, triProjected.p[1].y,
+		      triProjected.p[2].x, triProjected.p[2].y);
+      }
+      
+    }
+    
     
     XFlush(display);
     
