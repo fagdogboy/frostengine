@@ -14,31 +14,7 @@
 #include <chrono>
 #include <thread>
 
-struct vec3d {
-
-  float x,y,z;
-  
-};
-
-struct triangle {
-  
-  vec3d p[3];
-
-  unsigned long col_rgb;
-  
-};
-
-struct mesh {
-  
-  std::vector<triangle> tris;
-  
-};
-
-struct mat4x4 {
-  
-  float m[4][4] = { 0 };
-  
-};
+#include "utility.h"
 
 void multiply_matrix_vector(vec3d &i, vec3d &o, mat4x4 &m) {
 
@@ -129,7 +105,7 @@ public:
   }
 
   // i mog nimma :(
-  void draw_filled_in_triangle (unsigned int x1, unsigned int x2, unsigned int x3, unsigned int y1, unsigned int y2, unsigned int y3 ) {
+  void draw_filled_in_triangle (unsigned int x1, unsigned int x2, unsigned int x3, unsigned int y1, unsigned int y2, unsigned int y3 ,unsigned long color) {
 
     float fx1 = x1;
     float fx2 = x2;
@@ -149,14 +125,14 @@ public:
       {
 	std::cout << "bottom triangle! " << std::endl;
 	
-	fill_bottom_triangle(fx1,fy1,fx2,fy2,fx3,fy3);
+	fill_bottom_triangle(fx1,fy1,fx2,fy2,fx3,fy3,color);
       }
     
     if (fy2 == fy3)
       {
 	std::cout << "top triangle! " << std::endl;
 		
-	fill_top_triangle(fx1,fy1,fx2,fy2,fx3,fy3);
+	fill_top_triangle(fx1,fy1,fx2,fy2,fx3,fy3,color);
       }
     
     float fx4,fy4;
@@ -166,8 +142,8 @@ public:
     fx4 = (fx1 + ((float)(fy2 - fy1) / (float)(fy3 - fy1)) * (fx3 - fx1));
     fy4 = fy2;
 
-    fill_bottom_triangle(fx1,fy1,fx4,fy4,fx3,fy3);
-    fill_top_triangle(fx1,fy1,fx4,fy4,fx3,fy3);
+    fill_bottom_triangle(fx1,fy1,fx4,fy4,fx3,fy3,color);
+    fill_top_triangle(fx1,fy1,fx4,fy4,fx3,fy3,color);
     
   }
 
@@ -242,7 +218,7 @@ public:
       
       if(draw_cooldown){
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
 	draw_cooldown = false;
 	printf("no \n");
 
@@ -260,7 +236,7 @@ public:
 	
       }
 
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
       
     }
 
@@ -282,7 +258,7 @@ public:
 
   }
   
-  void fill_top_triangle(unsigned int v1x, unsigned int v1y, unsigned int v2x, unsigned int v2y, unsigned int v3x, unsigned int v3y) {
+  void fill_top_triangle(unsigned int v1x, unsigned int v1y, unsigned int v2x, unsigned int v2y, unsigned int v3x, unsigned int v3y,unsigned int color) {
 
     float fv1x = (float) v1x;
     float fv1y = (float) v1y;
@@ -313,14 +289,14 @@ public:
     for (int scanlineY = fv3y; scanlineY > fv1y; scanlineY--)
       {
 	
-	draw_horizontal_line((unsigned int)curx1, (unsigned int)scanlineY, (unsigned int)curx2, (unsigned int)scanlineY, FILL_COLOR);
+	draw_horizontal_line((unsigned int)curx1, (unsigned int)scanlineY, (unsigned int)curx2, (unsigned int)scanlineY, color);
 	curx1 -= invslope1;
 	curx2 -= invslope2;
 	
       }
   }
   
-  void fill_bottom_triangle(unsigned int v1x,unsigned int v1y,unsigned int v2x,unsigned int v2y,unsigned int v3x,unsigned int v3y) {
+  void fill_bottom_triangle(unsigned int v1x,unsigned int v1y,unsigned int v2x,unsigned int v2y,unsigned int v3x,unsigned int v3y,unsigned int color) {
 
     float fv1x = (float) v1x;
     float fv1y = (float) v1y;
@@ -349,7 +325,7 @@ public:
     
     for (int scanlineY = fv1y; scanlineY <= fv2y; scanlineY++)
       {	
-	draw_horizontal_line((unsigned int)curx1, (unsigned int)scanlineY, (unsigned int)curx2, (unsigned int)scanlineY, FILL_COLOR);
+	draw_horizontal_line((unsigned int)curx1, (unsigned int)scanlineY, (unsigned int)curx2, (unsigned int)scanlineY, color);
 	curx1 += invslope1;
 	curx2 += invslope2;
       }
@@ -381,30 +357,6 @@ public:
     XMapWindow(display, window);
     
     gc = XCreateGC(display, window, 0, nullptr);
-    
-    /*    loaded_mesh.tris = {
-      
-      { 0.0f, 0.0f, 0.0f,    0.0f, 1.0f, 0.0f,    1.0f, 1.0f, 0.0f },
-      { 0.0f, 0.0f, 0.0f,    1.0f, 1.0f, 0.0f,    1.0f, 0.0f, 0.0f },
-      
-      { 1.0f, 0.0f, 0.0f,    1.0f, 1.0f, 0.0f,    1.0f, 1.0f, 1.0f },
-      { 1.0f, 0.0f, 0.0f,    1.0f, 1.0f, 1.0f,    1.0f, 0.0f, 1.0f },
-      
-      { 1.0f, 0.0f, 1.0f,    1.0f, 1.0f, 1.0f,    0.0f, 1.0f, 1.0f },
-      { 1.0f, 0.0f, 1.0f,    0.0f, 1.0f, 1.0f,    0.0f, 0.0f, 1.0f },
-            
-      { 0.0f, 0.0f, 1.0f,    0.0f, 1.0f, 1.0f,    0.0f, 1.0f, 0.0f },
-      { 0.0f, 0.0f, 1.0f,    0.0f, 1.0f, 0.0f,    0.0f, 0.0f, 0.0f },
-      
-      { 0.0f, 1.0f, 0.0f,    0.0f, 1.0f, 1.0f,    1.0f, 1.0f, 1.0f },
-      { 0.0f, 1.0f, 0.0f,    1.0f, 1.0f, 1.0f,    1.0f, 1.0f, 0.0f },
-      
-      { 1.0f, 0.0f, 1.0f,    0.0f, 0.0f, 1.0f,    0.0f, 0.0f, 0.0f },
-      { 1.0f, 0.0f, 1.0f,    0.0f, 0.0f, 0.0f,    1.0f, 0.0f, 0.0f },
-      
-    };*/
-
-
 
     loaded_mesh = import_obj_mesh(FILE_TO_IMPORT);
     
@@ -465,8 +417,6 @@ public:
   }
   
   void render_screen() {
-
-
     
     int x, y; 
     unsigned int border_width, depth;
@@ -479,96 +429,68 @@ public:
     
     XSetForeground(display, gc , 0x000000);
     XFillRectangle(display, window, gc , 0, 0, width, height);
-    
-    matProj.m[0][0] = fAspectRatio * fFovRad;
-    matProj.m[1][1] = fFovRad;
-    matProj.m[2][2] = fFar / (fFar - fNear);
-    matProj.m[3][2] = ( -fFar * fNear ) / ( fFar - fNear );
-    matProj.m[2][3] = 1.0f;
-    matProj.m[3][3] = 0.0f;    
-    
-    matRotZ.m[0][0] = cosf(fThetaY);
-    matRotZ.m[0][1] = sinf(fThetaY);
-    matRotZ.m[1][0] = -sinf(fThetaY);
-    matRotZ.m[1][1] = cosf(fThetaY);
-    matRotZ.m[2][2] = 1;
-    matRotZ.m[3][3] = 1;
-    
-    matRotX.m[0][0] = 1;
-    matRotX.m[1][1] = cosf(fThetaX * 0.5f);
-    matRotX.m[1][2] = sinf(fThetaX * 0.5f);
-    matRotX.m[2][1] = -sinf(fThetaX * 0.5f);
-    matRotX.m[2][2] = cosf(fThetaX * 0.5f);
-    matRotX.m[3][3] = 1;
-    
 
     std::vector<triangle> v_want_to_draw;
+
+    matRotZ = matrix_make_rotate_z(fThetaZ);
+    matRotX = matrix_make_rotate_x(fThetaX);
+    matRotY = matrix_make_rotate_y(fThetaY);
+
+    matProj = matrix_make_projection(150.0f, (float)height / (float)width, 0.1f, 1000.0f);
+
+    //x y z
+    matTrans = matrix_make_translate(5.0f,3.0f,20.0f);
+
+    matWorld = matrix_make_static_identity();
+    matWorld = matrix_mul_matrix(matWorld,matRotX);
+    matWorld = matrix_mul_matrix(matWorld,matRotY);
+    matWorld = matrix_mul_matrix(matWorld,matRotZ);
+    matWorld = matrix_mul_matrix(matWorld,matTrans);
     
     for(auto tri : loaded_mesh.tris) {
-
-
       
       triangle triProjected;
-      triangle triTranslated;
-      triangle triRotatedZ;
-      triangle triRotatedZX;
-      
-      multiply_matrix_vector(tri.p[0],triRotatedZ.p[0], matRotZ);
-      multiply_matrix_vector(tri.p[1],triRotatedZ.p[1], matRotZ);
-      multiply_matrix_vector(tri.p[2],triRotatedZ.p[2], matRotZ);
-      
-      multiply_matrix_vector(triRotatedZ.p[0],triRotatedZX.p[0], matRotX);
-      multiply_matrix_vector(triRotatedZ.p[1],triRotatedZX.p[1], matRotX);
-      multiply_matrix_vector(triRotatedZ.p[2],triRotatedZX.p[2], matRotX);
-      
-      triTranslated = triRotatedZX;
-      triTranslated.p[0].z =  triRotatedZX.p[0].z + 4.0f;
-      triTranslated.p[1].z =  triRotatedZX.p[1].z + 4.0f;
-      triTranslated.p[2].z =  triRotatedZX.p[2].z + 4.0f;
+      triangle triTransformed;
 
+      triTransformed.p[0] = matrix_multiply_vector(matWorld,tri.p[0]);
+      triTransformed.p[1] = matrix_multiply_vector(matWorld,tri.p[1]);
+      triTransformed.p[2] = matrix_multiply_vector(matWorld,tri.p[2]);
+      
       vec3d normal, vec1, vec2;
-
-      vec1.x = triTranslated.p[1].x - triTranslated.p[0].x;
-      vec1.y = triTranslated.p[1].y - triTranslated.p[0].y;
-      vec1.z = triTranslated.p[1].z - triTranslated.p[0].z;
       
-      vec2.x = triTranslated.p[2].x - triTranslated.p[0].x;
-      vec2.y = triTranslated.p[2].y - triTranslated.p[0].y;
-      vec2.z = triTranslated.p[2].z - triTranslated.p[0].z;
+      
+      vec1 = vector_Sub(triTransformed.p[1], triTransformed.p[0]);
+      vec2 = vector_Sub(triTransformed.p[2], triTransformed.p[0]);
 
-      normal.x = vec1.y * vec2.z - vec1.z * vec2.y;
-      normal.y = vec1.z * vec2.x - vec1.x * vec2.z;
-      normal.z = vec1.x * vec2.y - vec1.y * vec2.x;
+      normal = vector_CrossProduct(vec1,vec2);
 
-      // yeah its normal to normally normalize our normal vector :nerd:
-      float l = sqrtf(normal.x*normal.x + normal.y*normal.y + normal.z*normal.z);
-      normal.x /= l; normal.y /= l; normal.z /= l;
+      normal = vector_Normalise(normal);
 
-      if(normal.x * (triTranslated.p[0].x - camera.x) + 
-	 normal.y * (triTranslated.p[0].y - camera.y) +
-	 normal.z * (triTranslated.p[0].z - camera.z) < 0.0f)
-	{
-
-
+      vec3d camera_ray = vector_Sub(triTransformed.p[0], camera);
+	
+	if( vector_DotProduct(normal, camera_ray) < 0.0f ) {
 	  
 	  vec3d light_source = { 0.0f, 0.0f, -1.0f };
 
-	  float l = sqrtf(light_source.x*light_source.x + light_source.y*light_source.y + light_source.z*light_source.z);
-	  light_source.x /= l; light_source.y /= l; light_source.z /= l;
-
+	  light_source = vector_Normalise(light_source);
+	  
 	  float dp_light = normal.x * light_source.x + normal.y * light_source.y + normal.z * light_source.z;
 
-	  triTranslated.col_rgb  = float_to_rgb_grayscale( dp_light );
-	  
-	  multiply_matrix_vector(triTranslated.p[0],triProjected.p[0], matProj);
-	  multiply_matrix_vector(triTranslated.p[1],triProjected.p[1], matProj);
-	  multiply_matrix_vector(triTranslated.p[2],triProjected.p[2], matProj);
+	  triTransformed.col_rgb  = float_to_rgb_grayscale( dp_light );
 
-	  triProjected.col_rgb = triTranslated.col_rgb;
+	  triProjected.p[0] = matrix_multiply_vector(matProj, triTransformed.p[0]);
+	  triProjected.p[1] = matrix_multiply_vector(matProj, triTransformed.p[1]);
+	  triProjected.p[2] = matrix_multiply_vector(matProj, triTransformed.p[2]);
+
+	  triProjected.col_rgb = triTransformed.col_rgb;
+
+	  triProjected.p[0] = vector_Div(triProjected.p[0], triTransformed.p[0].w);
+	  triProjected.p[1] = vector_Div(triProjected.p[1], triTransformed.p[1].w);
+	  triProjected.p[2] = vector_Div(triProjected.p[2], triTransformed.p[2].w);
 	  
-	  triProjected.p[0].x += 1.0f; triProjected.p[0].y += 1.0f;
-	  triProjected.p[1].x += 1.0f; triProjected.p[1].y += 1.0f;
-	  triProjected.p[2].x += 1.0f; triProjected.p[2].y += 1.0f;
+	  triProjected.p[0] = vector_Add(triProjected.p[0], offset_view);
+	  triProjected.p[1] = vector_Add(triProjected.p[1], offset_view);
+	  triProjected.p[2] = vector_Add(triProjected.p[2], offset_view);
 	  
 	  triProjected.p[0].x *= 0.5f * (float)width;
 	  triProjected.p[0].y *= 0.5f * (float)height;
@@ -664,27 +586,27 @@ public:
 	
 	if (key == XK_w) {
 	  
-	  fThetaX -= 0.3;
-	  
-	  std::cout << "X incremented: " << fThetaX << std::endl;
+	  fThetaX += 0.3;     
 	  
 	} else if (key == XK_a) {
 	  
-	  fThetaY -= 0.3;
-	  
-	  std::cout << "Y incremented: " << fThetaY << std::endl;
+	  fThetaY -= 0.3;	  
 	  
 	} else if (key == XK_s) {
 	  
-	  fThetaX += 0.3;
-	  
-	  std::cout << "X decremented: " << fThetaX << std::endl;
+	  fThetaX -= 0.3;	  
 	  
 	} else if (key == XK_d) {
 	  
-	  fThetaY += 0.3;
+	  fThetaY += 0.3;	  
 	  
-	  std::cout << "Y decremented: " << fThetaY << std::endl;
+	} else if (key == XK_e) {
+	  
+	  fThetaZ += 0.3;	  
+	  
+	} else if (key == XK_q) {
+	  
+	  fThetaZ -= 0.3;	 
 	  
 	} else if (key == XK_f) {
 	  
@@ -718,6 +640,7 @@ private:
   
   float fThetaX = 0.0f;
   float fThetaY = 0.0f;
+  float fThetaZ = 0.0f;
 
   float fPosition_X;
 
@@ -731,13 +654,19 @@ private:
   
   float fFar = 1000.0f;
   
-  float fFov = 90.0f;
+  float fFov = 100.0f;
 
   vec3d camera;
+
+  vec3d offset_view;
   
   mat4x4 matProj;
   mat4x4 matRotZ;
   mat4x4 matRotX;
+  mat4x4 matRotY;
+
+  mat4x4 matTrans;
+  mat4x4 matWorld;
   
   float fAspectRatio = (float)height / (float)width;
   
