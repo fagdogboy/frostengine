@@ -48,6 +48,74 @@ void multiply_matrix_vector(vec3d &i, vec3d &o, mat4x4 &m) {
 class XlibApp {
 
 public:
+
+  int sgn(int x)
+  {
+    if (x > 0) return +1;
+    if (x < 0) return -1;
+    return 0;
+  }
+
+  //this is a nightmare
+  void draw_bresenham_line(unsigned int start_x, unsigned int start_y, unsigned int end_x, unsigned int end_y) {
+    
+    int x, y, t, dx, dy, incx, incy, pdx, pdy, ddx, ddy, deltaslowdirection, deltafastdirection, err;
+    
+    dx = end_x - start_x;
+    dy = end_y - start_y;
+    
+    incx = sgn(dx);
+    incy = sgn(dy);
+
+    if (dx < 0) dx = -dx;
+    if (dy < 0) dy = -dy;
+    
+    if (dx > dy) {
+      
+        pdx = incx; pdy = 0;
+        ddx = incx; ddy = incy;
+        deltaslowdirection = dy;
+	deltafastdirection = dx;
+
+    } else {
+
+      pdx = 0;    pdy = incy;
+      ddx = incx; ddy = incy;
+      deltaslowdirection = dx;
+      deltafastdirection = dy;   
+
+    }
+    
+    x = start_x;
+    y = start_y;
+    err = deltafastdirection / 2;
+
+    XDrawPoint(display,window,gc,x,y);
+    
+    for(t = 0; t < deltafastdirection; ++t)  {
+
+      err -= deltaslowdirection;
+
+      if(err < 0) {
+
+	err += deltafastdirection;
+	x += ddx;
+	y += ddy;
+
+      } else {
+
+	x += pdx;
+	y += pdy;
+
+      }
+
+      XDrawPoint(display,window,gc,x,y);
+
+    }
+  }
+  
+  
+  
   
   XlibApp(int width, int height) : width(width), height(height) {
     display = XOpenDisplay(nullptr);
@@ -78,27 +146,21 @@ public:
     
     meshCube.tris = {
       
-      // SOUTH
       { 0.0f, 0.0f, 0.0f,    0.0f, 1.0f, 0.0f,    1.0f, 1.0f, 0.0f },
       { 0.0f, 0.0f, 0.0f,    1.0f, 1.0f, 0.0f,    1.0f, 0.0f, 0.0f },
       
-      // EAST                                                      
       { 1.0f, 0.0f, 0.0f,    1.0f, 1.0f, 0.0f,    1.0f, 1.0f, 1.0f },
       { 1.0f, 0.0f, 0.0f,    1.0f, 1.0f, 1.0f,    1.0f, 0.0f, 1.0f },
       
-      // NORTH                                                     
       { 1.0f, 0.0f, 1.0f,    1.0f, 1.0f, 1.0f,    0.0f, 1.0f, 1.0f },
       { 1.0f, 0.0f, 1.0f,    0.0f, 1.0f, 1.0f,    0.0f, 0.0f, 1.0f },
-      
-      // WEST                                                      
+            
       { 0.0f, 0.0f, 1.0f,    0.0f, 1.0f, 1.0f,    0.0f, 1.0f, 0.0f },
       { 0.0f, 0.0f, 1.0f,    0.0f, 1.0f, 0.0f,    0.0f, 0.0f, 0.0f },
       
-      // TOP                                                       
       { 0.0f, 1.0f, 0.0f,    0.0f, 1.0f, 1.0f,    1.0f, 1.0f, 1.0f },
       { 0.0f, 1.0f, 0.0f,    1.0f, 1.0f, 1.0f,    1.0f, 1.0f, 0.0f },
       
-      // BOTTOM                                                    
       { 1.0f, 0.0f, 1.0f,    0.0f, 0.0f, 1.0f,    0.0f, 0.0f, 0.0f },
       { 1.0f, 0.0f, 1.0f,    0.0f, 0.0f, 0.0f,    1.0f, 0.0f, 0.0f },
       
@@ -116,13 +178,11 @@ public:
     
     XSetForeground(display, gc, BlackPixel(display, DefaultScreen(display)));
     
-    printf("printing Coordinates: (%d, %d), (%d, %d), (%d, %d)\n", x1, y1, x2, y2, x3, y3);
+    printf("rendering Coordinates: (%d, %d), (%d, %d), (%d, %d)\n", x1, y1, x2, y2, x3, y3);
     
-    XDrawLine(display, window, gc, x1, y1, x2, y2);
-    XDrawLine(display, window, gc, x2, y2, x3, y3); 
-    XDrawLine(display, window, gc, x3, y3, x1, y1);
-    
-    
+    draw_bresenham_line(x1, y1, x2, y2);
+    draw_bresenham_line(x2, y2, x3, y3); 
+    draw_bresenham_line(x3, y3, x1, y1);
     XFlush(display);
   }
   
@@ -153,18 +213,18 @@ public:
     matProj.m[2][3] = 1.0f;
     matProj.m[3][3] = 0.0f;    
     
-    matRotZ.m[0][0] = cosf(fTheta);
-    matRotZ.m[0][1] = sinf(fTheta);
-    matRotZ.m[1][0] = -sinf(fTheta);
-    matRotZ.m[1][1] = cosf(fTheta);
+    matRotZ.m[0][0] = cosf(fThetaY);
+    matRotZ.m[0][1] = sinf(fThetaY);
+    matRotZ.m[1][0] = -sinf(fThetaY);
+    matRotZ.m[1][1] = cosf(fThetaY);
     matRotZ.m[2][2] = 1;
     matRotZ.m[3][3] = 1;
     
     matRotX.m[0][0] = 1;
-    matRotX.m[1][1] = cosf(fTheta * 0.5f);
-    matRotX.m[1][2] = sinf(fTheta * 0.5f);
-    matRotX.m[2][1] = -sinf(fTheta * 0.5f);
-    matRotX.m[2][2] = cosf(fTheta * 0.5f);
+    matRotX.m[1][1] = cosf(fThetaX * 0.5f);
+    matRotX.m[1][2] = sinf(fThetaX * 0.5f);
+    matRotX.m[2][1] = -sinf(fThetaX * 0.5f);
+    matRotX.m[2][2] = cosf(fThetaX * 0.5f);
     matRotX.m[3][3] = 1;
     
     
@@ -207,8 +267,11 @@ public:
       float l = sqrtf(normal.x*normal.x + normal.y*normal.y + normal.z*normal.z);
       normal.x /= l; normal.y /= l; normal.z /= l;
 
-      if(normal.z > 0) { continue; }
-      
+      if(normal.x * (triTranslated.p[0].x - camera.x) + 
+	 normal.y * (triTranslated.p[0].y - camera.y) +
+	 normal.z * (triTranslated.p[0].z - camera.z) >= 0.0f)
+	{continue;}
+	  
       multiply_matrix_vector(triTranslated.p[0],triProjected.p[0], matProj);
       multiply_matrix_vector(triTranslated.p[1],triProjected.p[1], matProj);
       multiply_matrix_vector(triTranslated.p[2],triProjected.p[2], matProj);
@@ -260,33 +323,31 @@ public:
 	
 	if (key == XK_w) {
 	  
-	  fTheta += 0.1;
+	  fThetaX -= 0.1;
 	  
-	  std::cout << "fTheta incremented: " << fTheta << std::endl;
+	  std::cout << "X incremented: " << fThetaX << std::endl;
 	  
 	} else if (key == XK_a) {
 	  
-	  fTheta += 0.1;
+	  fThetaY -= 0.1;
 	  
-	  std::cout << "fTheta incremented: " << fTheta << std::endl;
+	  std::cout << "Y incremented: " << fThetaY << std::endl;
 	  
 	} else if (key == XK_s) {
 	  
-	  fTheta += 0.1;
+	  fThetaX += 0.1;
 	  
-	  std::cout << "fTheta incremented: " << fTheta << std::endl;
+	  std::cout << "X decremented: " << fThetaX << std::endl;
 	  
 	} else if (key == XK_d) {
 	  
-	  fTheta += 0.1;
+	  fThetaY += 0.1;
 	  
-	  std::cout << "fTheta incremented: " << fTheta << std::endl;
+	  std::cout << "Y decremented: " << fThetaY << std::endl;
 	  
 	} else if (key == XK_f) {
 	  
-	  fTheta -= 0.1; 
-	  
-	  std::cout << "fTheta decremented: " << fTheta << std::endl;
+	 
 	  
 	} else if (key == XK_x) {
 	  break; 
@@ -305,11 +366,12 @@ private:
   GC gc;
   Window root;
   int screen;
-
+  
   unsigned int width;
   unsigned int height;
-
-  float fTheta = 0.0f;
+  
+  float fThetaX = 0.0f;
+  float fThetaY = 0.0f;
 
   float fPosition_X;
 
@@ -325,10 +387,12 @@ private:
   
   float fFov = 90.0f;
 
+  vec3d camera;
+  
   mat4x4 matProj;
   mat4x4 matRotZ;
   mat4x4 matRotX;
-
+  
   float fAspectRatio = (float)height / (float)width;
   
   float fFovRad = 1.0f / tanf( fFov * 0.5f / 180.0f * 3.14159f );
