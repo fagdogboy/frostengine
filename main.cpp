@@ -113,9 +113,65 @@ public:
 
     }
   }
+
+  // i mog nimma :(
+  void draw_filled_in_triangle (unsigned int x1, unsigned int x2, unsigned int x3, unsigned int y1, unsigned int y2, unsigned int y3 ) {
+
+    unsigned int s_buf;
+    
+    if(y1 > y2) { s_buf = y1; y1 = y2 ; y2 = s_buf; }
+    if(y2 > y3) { s_buf = y2; y2 = y3 ; y3 = s_buf; }
+    
+    if (y2 == y1)
+      {
+	fill_bottom_triangle(x1,y1,x2,y2,x3,y3);
+      }
+    
+    if (y2 == y3)
+      {
+	fill_top_triangle(x1,y1,x2,y2,x3,y3);
+      }
+    
+    unsigned int x4,y4;
+    
+    x4 = (unsigned int)(x1 + ((float)(y2 - y1) / (float)(y3 - y1)) * (x3 - x1));
+    y4 = y2;
+    
+  }
   
+  void fill_top_triangle(unsigned int v1x,unsigned int v1y,unsigned int v2x,unsigned int v2y,unsigned int v3x,unsigned int v3y) {
+    
+    float invslope1 = (v3x - v1x) / (v3y - v1y);
+    float invslope2 = (v3x - v2x) / (v3y - v2y);
+    
+    float curx1 = v3x;
+    float curx2 = v3x;
+    
+    for (int scanlineY = v3y; scanlineY > v1y; scanlineY--)
+      {
+	
+	draw_bresenham_line((unsigned int)curx1, (unsigned int)scanlineY, (unsigned int)curx2, (unsigned int)scanlineY);
+	curx1 -= invslope1;
+	curx2 -= invslope2;
+	
+      }
+  }
   
-  
+  void fill_bottom_triangle(unsigned int v1x,unsigned int v1y,unsigned int v2x,unsigned int v2y,unsigned int v3x,unsigned int v3y) {
+
+    float invslope1 = (v2x - v1x) / (v2y - v1y);
+    float invslope2 = (v3x - v1x) / (v3y - v1y);
+    
+    float curx1 = v1x;
+    float curx2 = v1x;
+    
+    for (int scanlineY = v1y; scanlineY <= v2y; scanlineY++)
+      {	
+	draw_bresenham_line((unsigned int)curx1, (unsigned int)scanlineY, (unsigned int)curx2, (unsigned int)scanlineY);
+	curx1 += invslope1;
+	curx2 += invslope2;
+      }
+  }
   
   XlibApp(int width, int height) : width(width), height(height) {
     display = XOpenDisplay(nullptr);
