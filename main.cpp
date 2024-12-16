@@ -624,11 +624,11 @@ public:
 	  
 	}
 	
-	// camera navigation
+	// camera navigation input
 	
 	if (key == XK_w) {
 	  
-	  vec3d cam_foreward = vector_Mul(look_dir, z_pos);
+	  vec3d cam_foreward = vector_Mul(look_dir, 0.1 * z_pos);
 
 	  std::cout << "z position : " << z_pos << std::endl;
 	  
@@ -637,14 +637,14 @@ public:
 	  
 	} else if (key == XK_s) {
 
-	  vec3d cam_foreward = vector_Mul(look_dir, z_pos);
+	  vec3d cam_foreward = vector_Mul(look_dir, 0.1 * z_pos);
 
 	  camera = vector_Sub(camera, cam_foreward);
 	  //	  z_pos -= 0.01f;
 	  
 	} else if (key == XK_a) {
 
-	  vec3d cam_foreward = vector_Mul(look_dir, x_pos);
+	  vec3d cam_foreward = vector_Mul(look_dir, 0.1 *  x_pos);
 
 	  vec3d cam_sideward = cam_foreward;
 	  cam_sideward.y = 0.0f;
@@ -661,7 +661,7 @@ public:
 	  
 	} else if (key == XK_d) {
 
-	  vec3d cam_foreward = vector_Mul(look_dir, x_pos);
+	  vec3d cam_foreward = vector_Mul(look_dir, 0.1 *  x_pos);
 
 	  vec3d cam_sideward = cam_foreward;
 	  cam_sideward.y = 0.0f;
