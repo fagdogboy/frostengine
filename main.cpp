@@ -441,11 +441,12 @@ public:
 
     matProj = matrix_make_projection(fFov, (float)height / (float)width, 0.1f, 100.0f);
 
-    //tj
+    //tjmat
     
     //x y z
     matTrans = matrix_make_translate(5.0f,3.0f,10.0f);
 
+    //matrix allocation
     matWorld = matrix_make_static_identity();
     matWorld = matrix_mul_matrix(matWorld,matRotX);
     matWorld = matrix_mul_matrix(matWorld,matRotY);
@@ -502,11 +503,12 @@ public:
 	  triProjected.p[2] = matrix_multiply_vector(matProj, triViewed.p[2]);
 
 	  triProjected.col_rgb = triTransformed.col_rgb;
-	  // scakeb
+	  // TJtrans
 	  triProjected.p[0] = vector_Div(triProjected.p[0], triProjected.p[0].w);
 	  triProjected.p[1] = vector_Div(triProjected.p[1], triProjected.p[1].w);
 	  triProjected.p[2] = vector_Div(triProjected.p[2], triProjected.p[2].w);
-	  
+
+	  offset_view = {1,1,0};
 	  triProjected.p[0] = vector_Add(triProjected.p[0], offset_view);
 	  triProjected.p[1] = vector_Add(triProjected.p[1], offset_view);
 	  triProjected.p[2] = vector_Add(triProjected.p[2], offset_view);
@@ -631,38 +633,64 @@ public:
 	  std::cout << "z position : " << z_pos << std::endl;
 	  
 	  camera = vector_Add(camera, cam_foreward);
-	  z_pos += 0.2f;
+	  //z_pos += 0.01f;
 	  
 	} else if (key == XK_s) {
 
 	  vec3d cam_foreward = vector_Mul(look_dir, z_pos);
 
 	  camera = vector_Sub(camera, cam_foreward);
-	  z_pos -= 0.2f;
+	  //	  z_pos -= 0.01f;
 	  
 	} else if (key == XK_a) {
+
+	  vec3d cam_foreward = vector_Mul(look_dir, x_pos);
+
+	  vec3d cam_sideward = cam_foreward;
+	  cam_sideward.y = 0.0f;
+
+	  vec3d cam_modified;
+
+	  cam_modified.x = cam_sideward.z;
+	  cam_modified.z = cam_sideward.x * -1.0f;
+	  cam_modified.y = cam_foreward.y;
+
+	  camera = vector_Sub(camera, cam_modified);
 	  
-	  camera.x -= change_rate;	 
+	  x_pos -= 0.05f;	 
 	  
 	} else if (key == XK_d) {
+
+	  vec3d cam_foreward = vector_Mul(look_dir, x_pos);
+
+	  vec3d cam_sideward = cam_foreward;
+	  cam_sideward.y = 0.0f;
+
+	  vec3d cam_modified;
+
+	  cam_modified.x = cam_sideward.z * -1.0f;
+	  cam_modified.z = cam_sideward.x;
+	  cam_modified.y = cam_foreward.y;
+
+	  camera = vector_Sub(camera, cam_modified);
 	  
-	  camera.x += change_rate;	 
+	  x_pos += 0.05f;	 	  
 	  
 	} else if (key == XK_q) {
 	  
-	  camera.y -= change_rate;	 
+	  camera.y -= 0.05f;	 
 	  
 	} else if (key == XK_e) {
 	  
-	  camera.y += change_rate;	 
+	  camera.y += 0.05f;	 
 	  
 	} else if (key == XK_z) {
 	  
-	  cam_yaw += change_rate * 0.3f;	 
+	  cam_yaw += change_rate * 0.1f;	 
 	  
 	} else if (key == XK_c) {
 	  
-	  cam_yaw -= change_rate * 0.3f;	 
+	  cam_yaw -= change_rate * 0.1f;	 
 	  
 	}
 
@@ -725,6 +753,8 @@ private:
   mesh loaded_mesh;
 
   float z_pos = 1.0f;
+
+  float x_pos = 1.0f;
   
   float fNear = 0.1f;
   
