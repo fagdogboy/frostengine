@@ -30,6 +30,64 @@ struct mat4x4 {
   
 };
 
+vec3d vector_Add(vec3d &v1, vec3d &v2)
+{
+  return { v1.x + v2.x, v1.y + v2.y, v1.z + v2.z };
+}
+
+vec3d vector_Sub(vec3d &v1, vec3d &v2)
+{
+  return { v1.x - v2.x, v1.y - v2.y, v1.z - v2.z };
+}
+
+vec3d vector_Mul(vec3d &v1, float k)
+{
+  return { v1.x * k, v1.y * k, v1.z * k };
+}
+
+vec3d vector_Div(vec3d &v1, float k)
+{
+  return { v1.x / k, v1.y / k, v1.z / k };
+}
+
+float vector_DotProduct(vec3d &v1, vec3d &v2)
+{
+  return v1.x*v2.x + v1.y*v2.y + v1.z * v2.z;
+}
+
+float vector_Length(vec3d &v)
+{
+  return sqrtf(vector_DotProduct(v, v));
+}
+
+vec3d vector_Normalise(vec3d &v)
+{
+  float l = vector_Length(v);
+  return { v.x / l, v.y / l, v.z / l };
+}
+
+
+vec3d vector_CrossProduct(vec3d &v1, vec3d &v2)
+{
+  vec3d v;
+  v.x = v1.y * v2.z - v1.z * v2.y;
+  v.y = v1.z * v2.x - v1.x * v2.z;
+  v.z = v1.x * v2.y - v1.y * v2.x;
+  return v;
+}
+
+vec3d vector_IntersectPlane(vec3d &plane_p, vec3d &plane_n, vec3d &lineStart, vec3d &lineEnd)
+{
+  plane_n = vector_Normalise(plane_n);
+  float plane_d = -vector_DotProduct(plane_n, plane_p);
+  float ad = vector_DotProduct(lineStart, plane_n);
+  float bd = vector_DotProduct(lineEnd, plane_n);
+  float t = (-plane_d - ad) / (bd - ad);
+  vec3d lineStartToEnd = vector_Sub(lineEnd, lineStart);
+  vec3d lineToIntersect = vector_Mul(lineStartToEnd, t);
+  return vector_Add(lineStart, lineToIntersect);
+}
+
 
 vec3d matrix_multiply_vector(mat4x4 &m, vec3d &i)
 {
@@ -135,61 +193,24 @@ mat4x4 matrix_QuickInverse(mat4x4 &m)
   return matrix;
 }
 
-vec3d vector_Add(vec3d &v1, vec3d &v2)
-{
-  return { v1.x + v2.x, v1.y + v2.y, v1.z + v2.z };
-}
+mat4x4 matrix_point_at(vec3d &pos, vec3d &target, vec3d &up) {
 
-vec3d vector_Sub(vec3d &v1, vec3d &v2)
-{
-  return { v1.x - v2.x, v1.y - v2.y, v1.z - v2.z };
-}
+  vec3d newForward = vector_Sub(target,pos);
+  newForward = vector_Normalise(newForward);
 
-vec3d vector_Mul(vec3d &v1, float k)
-{
-  return { v1.x * k, v1.y * k, v1.z * k };
-}
+  vec3d a = vector_Mul(newForward, vector_DotProduct(up, newForward));
+  vec3d newUp = vector_Sub(up, a);
+  newUp = vector_Normalise(newUp);
 
-vec3d vector_Div(vec3d &v1, float k)
-{
-  return { v1.x / k, v1.y / k, v1.z / k };
-}
+  vec3d newRight = vector_CrossProduct(newUp, newForward);
 
-float vector_DotProduct(vec3d &v1, vec3d &v2)
-{
-  return v1.x*v2.x + v1.y*v2.y + v1.z * v2.z;
-}
-
-float vector_Length(vec3d &v)
-{
-  return sqrtf(vector_DotProduct(v, v));
-}
-
-vec3d vector_Normalise(vec3d &v)
-{
-  float l = vector_Length(v);
-  return { v.x / l, v.y / l, v.z / l };
-}
-
-vec3d vector_CrossProduct(vec3d &v1, vec3d &v2)
-{
-  vec3d v;
-  v.x = v1.y * v2.z - v1.z * v2.y;
-  v.y = v1.z * v2.x - v1.x * v2.z;
-  v.z = v1.x * v2.y - v1.y * v2.x;
-  return v;
-}
-
-vec3d vector_IntersectPlane(vec3d &plane_p, vec3d &plane_n, vec3d &lineStart, vec3d &lineEnd)
-{
-  plane_n = vector_Normalise(plane_n);
-  float plane_d = -vector_DotProduct(plane_n, plane_p);
-  float ad = vector_DotProduct(lineStart, plane_n);
-  float bd = vector_DotProduct(lineEnd, plane_n);
-  float t = (-plane_d - ad) / (bd - ad);
-  vec3d lineStartToEnd = vector_Sub(lineEnd, lineStart);
-  vec3d lineToIntersect = vector_Mul(lineStartToEnd, t);
-  return vector_Add(lineStart, lineToIntersect);
+  mat4x4 matrix;
+  matrix.m[0][0] = newRight.x;	matrix.m[0][1] = newRight.y;	matrix.m[0][2] = newRight.z;	matrix.m[0][3] = 0.0f;
+  matrix.m[1][0] = newUp.x;		matrix.m[1][1] = newUp.y;		matrix.m[1][2] = newUp.z;		matrix.m[1][3] = 0.0f;
+  matrix.m[2][0] = newForward.x;	matrix.m[2][1] = newForward.y;	matrix.m[2][2] = newForward.z;	matrix.m[2][3] = 0.0f;
+  matrix.m[3][0] = pos.x;			matrix.m[3][1] = pos.y;			matrix.m[3][2] = pos.z;			matrix.m[3][3] = 1.0f;
+  return matrix;
+  
 }
 
 mat4x4 matrix_PointAt(vec3d &pos, vec3d &target, vec3d &up)

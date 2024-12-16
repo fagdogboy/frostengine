@@ -1,3 +1,4 @@
+#include <iomanip>
 #define FILL_COLOR 0xAA22BB
 #define BORDER_COLOR 0x000000
 #define FILE_TO_IMPORT "keyboard.obj"
@@ -203,9 +204,9 @@ public:
   }
 
   void try_to_render_screen() {
-
-    printf("attempting rendering \n");
     
+    printf("attempting rendering, but rendering on cooldown! \n");
+
     try_to_draw = true;
 
   }
@@ -217,19 +218,19 @@ public:
     while(!shutdown) {
       
       if(draw_cooldown){
-
+	
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
 	draw_cooldown = false;
 	printf("no \n");
-
+	
       }
       if(!draw_cooldown && try_to_draw) {
 	draw_cooldown = true;
 	try_to_draw = false;
 	printf("yes \n");
-
+	
 	render_screen();
-
+	
       } else {
 
 	printf("rendering attempt started, but rendering on cooldown! \n");
@@ -417,6 +418,8 @@ public:
   }
   
   void render_screen() {
+
+    draw_cooldown = true;
     
     int x, y; 
     unsigned int border_width, depth;
@@ -436,34 +439,46 @@ public:
     matRotX = matrix_make_rotate_x(fThetaX);
     matRotY = matrix_make_rotate_y(fThetaY);
 
-    matProj = matrix_make_projection(150.0f, (float)height / (float)width, 0.1f, 1000.0f);
+    matProj = matrix_make_projection(fFov, (float)height / (float)width, 0.1f, 100.0f);
 
+    //tj
+    
     //x y z
-    matTrans = matrix_make_translate(5.0f,3.0f,20.0f);
+    matTrans = matrix_make_translate(5.0f,3.0f,10.0f);
 
     matWorld = matrix_make_static_identity();
     matWorld = matrix_mul_matrix(matWorld,matRotX);
     matWorld = matrix_mul_matrix(matWorld,matRotY);
     matWorld = matrix_mul_matrix(matWorld,matRotZ);
     matWorld = matrix_mul_matrix(matWorld,matTrans);
+
+    vec3d up = {0,1,0};
+    vec3d target = {0,0,1};
+    mat4x4 cam_rot = matrix_make_rotate_y(cam_yaw);
+    look_dir = matrix_multiply_vector(cam_rot, target);
+    target = vector_Add(camera, look_dir);
+    mat4x4 camera_mat = matrix_PointAt(camera, target, up);
+
+    mat4x4 view_mat = matrix_QuickInverse(camera_mat);
     
     for(auto tri : loaded_mesh.tris) {
       
       triangle triProjected;
       triangle triTransformed;
+      triangle triViewed;
 
       triTransformed.p[0] = matrix_multiply_vector(matWorld,tri.p[0]);
       triTransformed.p[1] = matrix_multiply_vector(matWorld,tri.p[1]);
       triTransformed.p[2] = matrix_multiply_vector(matWorld,tri.p[2]);
       
       vec3d normal, vec1, vec2;
-      
-      
+ 
+      //vecs that span surface
       vec1 = vector_Sub(triTransformed.p[1], triTransformed.p[0]);
       vec2 = vector_Sub(triTransformed.p[2], triTransformed.p[0]);
 
+      // normal of surface
       normal = vector_CrossProduct(vec1,vec2);
-
       normal = vector_Normalise(normal);
 
       vec3d camera_ray = vector_Sub(triTransformed.p[0], camera);
@@ -471,22 +486,26 @@ public:
 	if( vector_DotProduct(normal, camera_ray) < 0.0f ) {
 	  
 	  vec3d light_source = { 0.0f, 0.0f, -1.0f };
-
 	  light_source = vector_Normalise(light_source);
-	  
 	  float dp_light = normal.x * light_source.x + normal.y * light_source.y + normal.z * light_source.z;
 
 	  triTransformed.col_rgb  = float_to_rgb_grayscale( dp_light );
 
-	  triProjected.p[0] = matrix_multiply_vector(matProj, triTransformed.p[0]);
-	  triProjected.p[1] = matrix_multiply_vector(matProj, triTransformed.p[1]);
-	  triProjected.p[2] = matrix_multiply_vector(matProj, triTransformed.p[2]);
+	  // world -> view
+	  triViewed.p[0] = matrix_multiply_vector(view_mat, triTransformed.p[0]);
+	  triViewed.p[1] = matrix_multiply_vector(view_mat, triTransformed.p[1]);
+	  triViewed.p[2] = matrix_multiply_vector(view_mat, triTransformed.p[2]);
+
+	  // proj to 2d
+	  triProjected.p[0] = matrix_multiply_vector(matProj, triViewed.p[0]);
+	  triProjected.p[1] = matrix_multiply_vector(matProj, triViewed.p[1]);
+	  triProjected.p[2] = matrix_multiply_vector(matProj, triViewed.p[2]);
 
 	  triProjected.col_rgb = triTransformed.col_rgb;
-
-	  triProjected.p[0] = vector_Div(triProjected.p[0], triTransformed.p[0].w);
-	  triProjected.p[1] = vector_Div(triProjected.p[1], triTransformed.p[1].w);
-	  triProjected.p[2] = vector_Div(triProjected.p[2], triTransformed.p[2].w);
+	  // scakeb
+	  triProjected.p[0] = vector_Div(triProjected.p[0], triProjected.p[0].w);
+	  triProjected.p[1] = vector_Div(triProjected.p[1], triProjected.p[1].w);
+	  triProjected.p[2] = vector_Div(triProjected.p[2], triProjected.p[2].w);
 	  
 	  triProjected.p[0] = vector_Add(triProjected.p[0], offset_view);
 	  triProjected.p[1] = vector_Add(triProjected.p[1], offset_view);
@@ -503,20 +522,6 @@ public:
 
 	  v_want_to_draw.push_back(triProjected);
 	  
-	  /* tmp_draw_filled_tri((unsigned int)triProjected.p[0].x,
-			      (unsigned int)triProjected.p[1].x,
-			      (unsigned int)triProjected.p[2].x,
-			      (unsigned int)triProjected.p[0].y,
-			      (unsigned int)triProjected.p[1].y,
-			      (unsigned int)triProjected.p[2].y,
-			      triProjected.col_rgb);
-	  
-	  draw_triangle(triProjected.p[0].x, triProjected.p[0].y,
-			triProjected.p[1].x, triProjected.p[1].y,
-			triProjected.p[2].x, triProjected.p[2].y);
-	  */
-
-
 	}      
     }
 
@@ -550,6 +555,8 @@ public:
     
     
     XFlush(display);
+
+    draw_cooldown = false;
     
   }    
   
@@ -583,36 +590,100 @@ public:
       
       if (event.type == KeyPress) {
 	KeySym key = XLookupKeysym(&event.xkey, 0);
-	
-	if (key == XK_w) {
+
+	// object rotation
+	if (key == XK_h) {
 	  
-	  fThetaX += 0.3;     
+	  fThetaX += change_rate;     
 	  
-	} else if (key == XK_a) {
+	} else if (key == XK_k) {
 	  
-	  fThetaY -= 0.3;	  
+	  fThetaY -= change_rate;	  
 	  
-	} else if (key == XK_s) {
+	} else if (key == XK_l) {
 	  
-	  fThetaX -= 0.3;	  
+	  fThetaX -= change_rate;	  
 	  
-	} else if (key == XK_d) {
+	} else if (key == XK_j) {
 	  
-	  fThetaY += 0.3;	  
+	  fThetaY += change_rate;	  
 	  
-	} else if (key == XK_e) {
+	} else if (key == XK_u) {
 	  
-	  fThetaZ += 0.3;	  
+	  fThetaZ += change_rate;	  
 	  
-	} else if (key == XK_q) {
+	} else if (key == XK_i) {
 	  
-	  fThetaZ -= 0.3;	 
+	  fThetaZ -= change_rate;	 
 	  
 	} else if (key == XK_f) {
 	  
 	  wireframe_active = !wireframe_active;
 	  
-	} else if (key == XK_x) {
+	}
+	
+	// camera navigation
+	
+	if (key == XK_w) {
+	  
+	  vec3d cam_foreward = vector_Mul(look_dir, z_pos);
+
+	  std::cout << "z position : " << z_pos << std::endl;
+	  
+	  camera = vector_Add(camera, cam_foreward);
+	  z_pos += 0.2f;
+	  
+	} else if (key == XK_s) {
+
+	  vec3d cam_foreward = vector_Mul(look_dir, z_pos);
+
+	  camera = vector_Sub(camera, cam_foreward);
+	  z_pos -= 0.2f;
+	  
+	} else if (key == XK_a) {
+	  
+	  camera.x -= change_rate;	 
+	  
+	} else if (key == XK_d) {
+	  
+	  camera.x += change_rate;	 
+	  
+	} else if (key == XK_q) {
+	  
+	  camera.y -= change_rate;	 
+	  
+	} else if (key == XK_e) {
+	  
+	  camera.y += change_rate;	 
+	  
+	} else if (key == XK_z) {
+	  
+	  cam_yaw += change_rate * 0.3f;	 
+	  
+	} else if (key == XK_c) {
+	  
+	  cam_yaw -= change_rate * 0.3f;	 
+	  
+	}
+
+	//extras
+
+	if (key == XK_t) {
+	  
+	  fFov += 5.0f;
+	  //fFovRad = 1.0f / tanf( fFov * 0.5f / 180.0f * 3.14159f );
+	  fFovRad += 0.1f;
+	}
+	
+	if (key == XK_g) {
+	  
+	  fFov -= 5.0f;
+	  //fFovRad = 1.0f / tanf( fFov * 0.5f / 180.0f * 3.14159f );
+	  fFovRad -= 0.1f;
+	}
+	
+	//quit
+	if (key == XK_x) {
 	  break; 
 	}
 	
@@ -627,12 +698,15 @@ public:
   
 private:
 
+  float change_rate = 0.15f;
+  
   bool wireframe_active = true;
 
   Display* display;
   Window window;
   GC gc;
   Window root;
+
   int screen;
   
   unsigned int width;
@@ -649,7 +723,9 @@ private:
   float fPosition_Z;
   
   mesh loaded_mesh;
-    
+
+  float z_pos = 1.0f;
+  
   float fNear = 0.1f;
   
   float fFar = 1000.0f;
@@ -657,8 +733,9 @@ private:
   float fFov = 100.0f;
 
   vec3d camera;
-
+  vec3d look_dir;
   vec3d offset_view;
+  float cam_yaw;
   
   mat4x4 matProj;
   mat4x4 matRotZ;
@@ -670,7 +747,8 @@ private:
   
   float fAspectRatio = (float)height / (float)width;
   
-  float fFovRad = 1.0f / tanf( fFov * 0.5f / 180.0f * 3.14159f );
+  // float fFovRad = 1.0f / tanf( fFov * 0.5f / 180.0f * 3.14159f );
+  float fFovRad = 1.72123f;
 
   bool try_to_draw;
 
