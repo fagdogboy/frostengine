@@ -218,14 +218,14 @@ public:
       
       if (try_move_foreward) {
 	
-	vec3d cam_foreward = vector_Mul(look_dir, 0.02f * z_pos);
+	vec3d cam_foreward = vector_Mul(look_dir, 0.04f * z_pos);
 	
 	camera = vector_Add(camera, cam_foreward);	
       }
       
       if (try_move_backward) {
 	
-	vec3d cam_foreward = vector_Mul(look_dir, 0.02f * z_pos);
+	vec3d cam_foreward = vector_Mul(look_dir, 0.04f * z_pos);
 	
 	camera = vector_Sub(camera, cam_foreward);	
       }
@@ -275,10 +275,10 @@ public:
 	camera.y += 0.05f;	 
 	     
       if (try_rotate_right) 	
-	cam_yaw += change_rate * 0.05f;	 
+	cam_yaw += change_rate * 0.1f;	 
 	
       if (try_rotate_left) 	
-	cam_yaw -= change_rate * 0.05f;	 
+	cam_yaw -= change_rate * 0.1f;	 
         
       if(draw_cooldown) {
 	
@@ -287,8 +287,6 @@ public:
 	printf("no \n");
 	
       }
-
-      render_screen();
       
       if(!draw_cooldown && try_to_draw) {
 
@@ -300,11 +298,14 @@ public:
 	
       } else {
 
-	printf("rendering attempt started, but rendering on cooldown! \n");
+	printf("rendering attempt started, but detected not neccessary! \n");
 	
       }
 
-      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+      std::this_thread::sleep_for(std::chrono::milliseconds(25));
+
+      if((try_move_backward || try_move_foreward || try_move_left || try_move_right || try_rotate_left || try_rotate_right))
+	try_to_render_screen();
       
     }
 
@@ -314,14 +315,14 @@ public:
   
   void tmp_draw_filled_tri(unsigned int v1x, unsigned int v2x, unsigned int v3x, unsigned int v1y, unsigned int v2y, unsigned int v3y, unsigned long color) {
 
-     XSetForeground(display,gc,color);
+    XSetForeground(display,gc,color);
     
     XPoint triangle[3];
     triangle[0].x = v1x; triangle[0].y = v1y;
     triangle[1].x = v2x; triangle[1].y = v2y;
     triangle[2].x = v3x; triangle[2].y = v3y;
     
-    XFillPolygon(display,window,gc, triangle, 3, 2, 0);
+    XFillPolygon(display, window ,gc, triangle, 3, 2, 0);
 
   }
   
@@ -530,7 +531,7 @@ public:
     
     for(auto tri : loaded_mesh.tris) {
       
-      triangle triProjected;
+      triangle triProjected; 
       triangle triTransformed;
       triangle triViewed;
 
@@ -619,6 +620,8 @@ public:
 		      triProjected.p[2].x, triProjected.p[2].y);
       }      
       
+      // swap buffers??? hah i wish 
+
     }
     
     
@@ -637,6 +640,8 @@ public:
     camera.x = 0.0f;
     camera.y = 0.0f;
     camera.z = 0.0f;
+
+    screen = DefaultScreen(display);
     
     XEvent event;
     while (true) {
@@ -662,7 +667,7 @@ public:
 	KeySym key = XLookupKeysym(&event.xkey, 0);
 
 	// world rotation
-	if (key == XK_h) {
+	if (key == XK_n) {
 	  
 	  fThetaX += change_rate;     
 	  
@@ -670,7 +675,7 @@ public:
 	  
 	  fThetaY -= change_rate;	  
 	  
-	} else if (key == XK_l) {
+	} else if (key == XK_m) {
 	  
 	  fThetaX -= change_rate;	  
 	  
@@ -706,17 +711,17 @@ public:
 	if (key == XK_d)
 	  try_move_left = true;
 
-	if (key == XK_c)
+	if (key == XK_h)
 	  try_rotate_right = true;
 
-	if (key == XK_z)
+	if (key == XK_l)
 	  try_rotate_left = true;
 
-	if (key == XK_e)
-	  try_move_up = true;
-
-	if (key == XK_q)
+	if (key == XK_space)
 	  try_move_down = true;
+
+	if (key == XK_Shift_L)
+	  try_move_up = true;
 
 	//extras
 
@@ -752,21 +757,19 @@ public:
 	if (key == XK_s)
 	  try_move_backward = false;
 	if (key == XK_a)
-	  try_move_left = false;
-	if (key == XK_d)
 	  try_move_right = false;
-	if (key == XK_c)
+	if (key == XK_d)
+	  try_move_left = false;
+	if (key == XK_h)
 	  try_rotate_right = false;
-	if (key == XK_z)
+	if (key == XK_l)
 	  try_rotate_left = false;
-	if (key == XK_e)
-	  try_move_up = false;
-	if (key == XK_q)
+	if (key == XK_space)
 	  try_move_down = false;
+	if (key == XK_Shift_L)
+	  try_move_up = false;
 
-
-      }
-				      
+      }				      
       
     }
     
