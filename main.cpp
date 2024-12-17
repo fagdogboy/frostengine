@@ -1,3 +1,4 @@
+#include <X11/X.h>
 #include <iomanip>
 #define FILL_COLOR 0xAA22BB
 #define BORDER_COLOR 0x000000
@@ -203,9 +204,7 @@ public:
 
   }
 
-  void try_to_render_screen() {
-    
-    printf("attempting rendering, but rendering on cooldown! \n");
+  void try_to_render_screen() {    
 
     try_to_draw = true;
 
@@ -215,17 +214,85 @@ public:
 
     printf("runtime helper start! \n");
     
-    while(!shutdown) {
+    while(!shutdown) {      
       
-      if(draw_cooldown){
+      if (try_move_foreward) {
+	
+	vec3d cam_foreward = vector_Mul(look_dir, 0.02f * z_pos);
+	
+	camera = vector_Add(camera, cam_foreward);	
+      }
+      
+      if (try_move_backward) {
+	
+	vec3d cam_foreward = vector_Mul(look_dir, 0.02f * z_pos);
+	
+	camera = vector_Sub(camera, cam_foreward);	
+      }
+
+      if (try_move_right) {
+	
+	vec3d cam_foreward_step = vector_Mul(look_dir, 0.04f);
+	
+	vec3d cam_foreward = vector_Mul(cam_foreward_step,x_pos);
+	
+	vec3d cam_sideward = cam_foreward;
+	cam_sideward.y = 0.0f;
+	
+	vec3d cam_modified;
+	
+	cam_modified.x = cam_sideward.z;
+	cam_modified.z = cam_sideward.x * -1.0f;
+	cam_modified.y = cam_foreward.y;
+	
+	camera = vector_Sub(camera, cam_modified);
+	
+	x_pos -= 0.01f;	 	
+      }
+
+      if (try_move_left) {
+	
+	vec3d cam_foreward = vector_Mul(look_dir, 0.04 *  x_pos);
+	
+	vec3d cam_sideward = cam_foreward;
+	cam_sideward.y = 0.0f;
+	
+	vec3d cam_modified;
+	
+	cam_modified.x = cam_sideward.z * -1.0f;
+	cam_modified.z = cam_sideward.x;
+	cam_modified.y = cam_foreward.y;
+	
+	camera = vector_Sub(camera, cam_modified);
+	
+	x_pos += 0.01f;	 	  	
+      }
+      
+      if (try_move_down) 	
+	camera.y -= 0.05f;	 
+	      
+      if (try_move_up) 	
+	camera.y += 0.05f;	 
+	     
+      if (try_rotate_right) 	
+	cam_yaw += change_rate * 0.05f;	 
+	
+      if (try_rotate_left) 	
+	cam_yaw -= change_rate * 0.05f;	 
+        
+      if(draw_cooldown) {
 	
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
 	draw_cooldown = false;
 	printf("no \n");
 	
       }
+
+      render_screen();
+      
       if(!draw_cooldown && try_to_draw) {
-	draw_cooldown = true;
+
+        draw_cooldown = true;
 	try_to_draw = false;
 	printf("yes \n");
 	
@@ -245,10 +312,9 @@ public:
 
   }
   
-  
   void tmp_draw_filled_tri(unsigned int v1x, unsigned int v2x, unsigned int v3x, unsigned int v1y, unsigned int v2y, unsigned int v3y, unsigned long color) {
 
-    XSetForeground(display,gc,color);
+     XSetForeground(display,gc,color);
     
     XPoint triangle[3];
     triangle[0].x = v1x; triangle[0].y = v1y;
@@ -354,7 +420,7 @@ public:
 				 WhitePixel(display, screen)
 				 );
     
-    XSelectInput(display, window, ExposureMask | KeyPressMask);
+    XSelectInput(display, window, ExposureMask | KeyPressMask | KeyReleaseMask);
     XMapWindow(display, window);
     
     gc = XCreateGC(display, window, 0, nullptr);
@@ -574,7 +640,9 @@ public:
     
     XEvent event;
     while (true) {
+
       XNextEvent(display, &event);
+
       if (event.type == Expose) {
 	
 	int x, y; 
@@ -593,7 +661,7 @@ public:
       if (event.type == KeyPress) {
 	KeySym key = XLookupKeysym(&event.xkey, 0);
 
-	// object rotation
+	// world rotation
 	if (key == XK_h) {
 	  
 	  fThetaX += change_rate;     
@@ -625,74 +693,30 @@ public:
 	}
 	
 	// camera navigation input
-	
-	if (key == XK_w) {
-	  
-	  vec3d cam_foreward = vector_Mul(look_dir, 0.1 * z_pos);
 
-	  std::cout << "z position : " << z_pos << std::endl;
-	  
-	  camera = vector_Add(camera, cam_foreward);
-	  //z_pos += 0.01f;
-	  
-	} else if (key == XK_s) {
+	if (key == XK_w)
+	  try_move_foreward = true;
 
-	  vec3d cam_foreward = vector_Mul(look_dir, 0.1 * z_pos);
+	if (key == XK_s)
+	  try_move_backward = true;
 
-	  camera = vector_Sub(camera, cam_foreward);
-	  //	  z_pos -= 0.01f;
-	  
-	} else if (key == XK_a) {
+	if (key == XK_a)
+	  try_move_right = true;
 
-	  vec3d cam_foreward = vector_Mul(look_dir, 0.1 *  x_pos);
+	if (key == XK_d)
+	  try_move_left = true;
 
-	  vec3d cam_sideward = cam_foreward;
-	  cam_sideward.y = 0.0f;
+	if (key == XK_c)
+	  try_rotate_right = true;
 
-	  vec3d cam_modified;
+	if (key == XK_z)
+	  try_rotate_left = true;
 
-	  cam_modified.x = cam_sideward.z;
-	  cam_modified.z = cam_sideward.x * -1.0f;
-	  cam_modified.y = cam_foreward.y;
+	if (key == XK_e)
+	  try_move_up = true;
 
-	  camera = vector_Sub(camera, cam_modified);
-	  
-	  x_pos -= 0.05f;	 
-	  
-	} else if (key == XK_d) {
-
-	  vec3d cam_foreward = vector_Mul(look_dir, 0.1 *  x_pos);
-
-	  vec3d cam_sideward = cam_foreward;
-	  cam_sideward.y = 0.0f;
-
-	  vec3d cam_modified;
-
-	  cam_modified.x = cam_sideward.z * -1.0f;
-	  cam_modified.z = cam_sideward.x;
-	  cam_modified.y = cam_foreward.y;
-
-	  camera = vector_Sub(camera, cam_modified);
-	  
-	  x_pos += 0.05f;	 	  
-	  
-	} else if (key == XK_q) {
-	  
-	  camera.y -= 0.05f;	 
-	  
-	} else if (key == XK_e) {
-	  
-	  camera.y += 0.05f;	 
-	  
-	} else if (key == XK_z) {
-	  
-	  cam_yaw += change_rate * 0.1f;	 
-	  
-	} else if (key == XK_c) {
-	  
-	  cam_yaw -= change_rate * 0.1f;	 
-	  
-	}
+	if (key == XK_q)
+	  try_move_down = true;
 
 	//extras
 
@@ -719,6 +743,31 @@ public:
 	
       }
 
+      if(event.type == KeyRelease) {
+	
+	KeySym key = XLookupKeysym(&event.xkey, 0);
+
+	if (key == XK_w)
+	  try_move_foreward = false;
+	if (key == XK_s)
+	  try_move_backward = false;
+	if (key == XK_a)
+	  try_move_left = false;
+	if (key == XK_d)
+	  try_move_right = false;
+	if (key == XK_c)
+	  try_rotate_right = false;
+	if (key == XK_z)
+	  try_rotate_left = false;
+	if (key == XK_e)
+	  try_move_up = false;
+	if (key == XK_q)
+	  try_move_down = false;
+
+
+      }
+				      
+      
     }
     
   }
@@ -730,36 +779,32 @@ private:
   
   bool wireframe_active = true;
 
+  //X11
   Display* display;
   Window window;
   GC gc;
   Window root;
-
   int screen;
   
   unsigned int width;
   unsigned int height;
-  
+
+  //Renderer Data
   float fThetaX = 0.0f;
   float fThetaY = 0.0f;
   float fThetaZ = 0.0f;
 
   float fPosition_X;
-
   float fPosition_Y;
-
   float fPosition_Z;
   
   mesh loaded_mesh;
 
   float z_pos = 1.0f;
-
   float x_pos = 1.0f;
   
   float fNear = 0.1f;
-  
   float fFar = 1000.0f;
-  
   float fFov = 100.0f;
 
   vec3d camera;
@@ -776,15 +821,23 @@ private:
   mat4x4 matWorld;
   
   float fAspectRatio = (float)height / (float)width;
-  
-  // float fFovRad = 1.0f / tanf( fFov * 0.5f / 180.0f * 3.14159f );
   float fFovRad = 1.72123f;
 
+  //Optimization 
   bool try_to_draw;
-
   bool draw_cooldown = false;
-
   bool shutdown = false;
+
+  //Movement helpers (i know its shit impl but its x11 so theres no better way )
+
+  bool try_move_foreward = false;
+  bool try_move_backward = false;
+  bool try_move_left = false;
+  bool try_move_right = false;
+  bool try_move_up = false;
+  bool try_move_down = false;
+  bool try_rotate_left = false;
+  bool try_rotate_right = false;
   
 };
 
