@@ -213,8 +213,16 @@ public:
   void window_runtime_helper() {
 
     printf("runtime helper start! \n");
+
+    auto start_time = std::chrono::steady_clock::now();
     
     while(!shutdown) {      
+
+      auto cur_time = std::chrono::steady_clock::now();
+
+      auto elapsed_seconds = std::chrono::duration_cast<std::chrono::seconds>(cur_time - start_time).count();
+
+      avg_fps = (float)frames_drawn / (float)elapsed_seconds;
       
       if (try_move_foreward) {
 	
@@ -275,10 +283,10 @@ public:
 	camera.y += 0.05f;	 
 	     
       if (try_rotate_right) 	
-	cam_yaw += change_rate * 0.1f;	 
+	cam_yaw += change_rate * 0.2f;	 
 	
       if (try_rotate_left) 	
-	cam_yaw -= change_rate * 0.1f;	 
+	cam_yaw -= change_rate * 0.2f;	 
         
       if(draw_cooldown) {
 	
@@ -298,13 +306,14 @@ public:
 	
       } else {
 
+	frames_drawn++;
 	printf("rendering attempt started, but detected not neccessary! \n");
 	
       }
 
       std::this_thread::sleep_for(std::chrono::milliseconds(25));
 
-      if((try_move_backward || try_move_foreward || try_move_left || try_move_right || try_rotate_left || try_rotate_right))
+      if((try_move_backward || try_move_down || try_move_up || try_move_foreward || try_move_left || try_move_right || try_rotate_left || try_rotate_right))
 	try_to_render_screen();
       
     }
@@ -623,7 +632,27 @@ public:
       // swap buffers??? hah i wish 
 
     }
+
+    if(wireframe_active) {
+      XSetForeground(display, gc, 0x00FF00);
+      XDrawString(display, window, gc, 10, 50, "Wireframe - active", 18);
+    } else {
+      XSetForeground(display, gc, 0xFF0000);
+      XDrawString(display, window, gc, 10, 50, "Wireframe - deactivated", 23);
+    }
+
+    std::string cur_fov_str = "fFov - ";
+    cur_fov_str += std::to_string(fFov);
+    XSetForeground(display, gc, 0x00FF00);
+    XDrawString(display, window, gc, 10, 80, cur_fov_str.c_str(), cur_fov_str.length());
+
+    std::string cur_fps_str = "FPS (average) - ";
+    cur_fps_str += std::to_string(avg_fps);
+    XSetForeground(display, gc, 0xAAAAFF);
+    XDrawString(display, window, gc, 10, 110, cur_fps_str.c_str(), cur_fps_str.length());
     
+    
+    frames_drawn++;
     
     XFlush(display);
 
@@ -831,6 +860,9 @@ private:
   bool draw_cooldown = false;
   bool shutdown = false;
 
+  unsigned int frames_drawn = 0;
+  float avg_fps = 0;
+  
   //Movement helpers (i know its shit impl but its x11 so theres no better way )
 
   bool try_move_foreward = false;
