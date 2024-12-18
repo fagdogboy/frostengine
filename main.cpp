@@ -324,6 +324,11 @@ public:
   
   void tmp_draw_filled_tri(unsigned int v1x, unsigned int v2x, unsigned int v3x, unsigned int v1y, unsigned int v2y, unsigned int v3y, unsigned long color) {
 
+    if(v1x > (width + clip_margin) || v2x > (width  + clip_margin) || v3x > (width + clip_margin) )
+      return;
+    if(v1y > (height + clip_margin) || v2y > (height + clip_margin) || v3y > (height + clip_margin) )
+      return;
+    
     XSetForeground(display,gc,color);
     
     XPoint triangle[3];
@@ -469,6 +474,12 @@ public:
   }
   
   void draw_triangle(int x1, int y1, int x2, int y2, int x3, int y3) {
+
+    
+    if((int)x1 > (int)width + clip_margin || (int)x2 > (int)width  + clip_margin || (int)x3 > (int)width + clip_margin )
+      return;
+    if((int)y1 > (int)height + clip_margin || (int)y2 > (int)height + clip_margin || (int)y3 > (int)height + clip_margin )
+      return;
     
     XSetForeground(display, gc, BlackPixel(display, DefaultScreen(display)));
     
@@ -855,6 +866,8 @@ private:
   float fAspectRatio = (float)height / (float)width;
   float fFovRad = 1.72123f;
 
+  int clip_margin = 50;
+  
   //Optimization 
   bool try_to_draw;
   bool draw_cooldown = false;
