@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <chrono>
 #include <thread>
+#include <list>
 
 #include "utility.h"
 
@@ -323,11 +324,6 @@ public:
   }
   
   void tmp_draw_filled_tri(unsigned int v1x, unsigned int v2x, unsigned int v3x, unsigned int v1y, unsigned int v2y, unsigned int v3y, unsigned long color) {
-
-    if(v1x > (width + clip_margin) || v2x > (width  + clip_margin) || v3x > (width + clip_margin) )
-      return;
-    if(v1y > (height + clip_margin) || v2y > (height + clip_margin) || v3y > (height + clip_margin) )
-      return;
     
     XSetForeground(display,gc,color);
     
@@ -474,12 +470,6 @@ public:
   }
   
   void draw_triangle(int x1, int y1, int x2, int y2, int x3, int y3) {
-
-    
-    if((int)x1 > (int)width + clip_margin || (int)x2 > (int)width  + clip_margin || (int)x3 > (int)width + clip_margin )
-      return;
-    if((int)y1 > (int)height + clip_margin || (int)y2 > (int)height + clip_margin || (int)y3 > (int)height + clip_margin )
-      return;
     
     XSetForeground(display, gc, BlackPixel(display, DefaultScreen(display)));
     
@@ -507,6 +497,8 @@ public:
   void render_screen() {
 
     draw_cooldown = true;
+
+    auto filter_time = std::chrono::high_resolution_clock::now();
     
     int x, y; 
     unsigned int border_width, depth;
@@ -584,36 +576,46 @@ public:
 	  triViewed.p[1] = matrix_multiply_vector(view_mat, triTransformed.p[1]);
 	  triViewed.p[2] = matrix_multiply_vector(view_mat, triTransformed.p[2]);
 
-	  // proj to 2d
-	  triProjected.p[0] = matrix_multiply_vector(matProj, triViewed.p[0]);
-	  triProjected.p[1] = matrix_multiply_vector(matProj, triViewed.p[1]);
-	  triProjected.p[2] = matrix_multiply_vector(matProj, triViewed.p[2]);
-
-	  triProjected.col_rgb = triTransformed.col_rgb;
-	  // TJtrans
-	  triProjected.p[0] = vector_Div(triProjected.p[0], triProjected.p[0].w);
-	  triProjected.p[1] = vector_Div(triProjected.p[1], triProjected.p[1].w);
-	  triProjected.p[2] = vector_Div(triProjected.p[2], triProjected.p[2].w);
-
-	  offset_view = {1,1,0};
-	  triProjected.p[0] = vector_Add(triProjected.p[0], offset_view);
-	  triProjected.p[1] = vector_Add(triProjected.p[1], offset_view);
-	  triProjected.p[2] = vector_Add(triProjected.p[2], offset_view);
+	  int nClippedTriangles = 0;
+	  triangle clipped[2];
+	  nClippedTriangles = clip_triangle_plane({ 0.0f, 0.0f, 0.5f }, { 0.0f, 0.0f, 1.0f }, triViewed, clipped[0], clipped[1]);
 	  
-	  triProjected.p[0].x *= 0.5f * (float)width;
-	  triProjected.p[0].y *= 0.5f * (float)height;
-	  
-	  triProjected.p[1].x *= 0.5f * (float)width;
-	  triProjected.p[1].y *= 0.5f * (float)height;
-	  
-	  triProjected.p[2].x *= 0.5f * (float)width;
-	  triProjected.p[2].y *= 0.5f * (float)height;
-
-	  v_want_to_draw.push_back(triProjected);
+	  for (int n = 0; n < nClippedTriangles; n++)
+	    {
+	      
+	      // proj to 2d
+	      triProjected.p[0] = matrix_multiply_vector(matProj, clipped[n].p[0]);
+	      triProjected.p[1] = matrix_multiply_vector(matProj, clipped[n].p[1]);
+	      triProjected.p[2] = matrix_multiply_vector(matProj, clipped[n].p[2]);
+	      
+	      triProjected.col_rgb = triTransformed.col_rgb;
+	      // TJtrans
+	      triProjected.p[0] = vector_Div(triProjected.p[0], triProjected.p[0].w);
+	      triProjected.p[1] = vector_Div(triProjected.p[1], triProjected.p[1].w);
+	      triProjected.p[2] = vector_Div(triProjected.p[2], triProjected.p[2].w);
+	      
+	      offset_view = {1,1,0};
+	      triProjected.p[0] = vector_Add(triProjected.p[0], offset_view);
+	      triProjected.p[1] = vector_Add(triProjected.p[1], offset_view);
+	      triProjected.p[2] = vector_Add(triProjected.p[2], offset_view);
+	      
+	      triProjected.p[0].x *= 0.5f * (float)width;
+	      triProjected.p[0].y *= 0.5f * (float)height;
+	      
+	      triProjected.p[1].x *= 0.5f * (float)width;
+	      triProjected.p[1].y *= 0.5f * (float)height;
+	      
+	      triProjected.p[2].x *= 0.5f * (float)width;
+	      triProjected.p[2].y *= 0.5f * (float)height;
+	      
+	      v_want_to_draw.push_back(triProjected);
+	      
+	    }
 	  
 	}      
-    }
 
+    }
+    
     //shoutout to stdlib
     sort(v_want_to_draw.begin(), v_want_to_draw.end(), [](triangle &t1, triangle &t2) {
 
@@ -623,27 +625,66 @@ public:
       return z1 > z2;
 
     });
-    
-    for(auto &triProjected : v_want_to_draw) {
 
-      tmp_draw_filled_tri((unsigned int)triProjected.p[0].x,
-			  (unsigned int)triProjected.p[1].x,
-			  (unsigned int)triProjected.p[2].x,
-			  (unsigned int)triProjected.p[0].y,
-			  (unsigned int)triProjected.p[1].y,
-			  (unsigned int)triProjected.p[2].y,
-			  triProjected.col_rgb);
-      
-      if(wireframe_active){
-	draw_triangle(triProjected.p[0].x, triProjected.p[0].y,
-		      triProjected.p[1].x, triProjected.p[1].y,
-		      triProjected.p[2].x, triProjected.p[2].y);
-      }      
+    auto render_start = std::chrono::high_resolution_clock::now();
+    
+    for(auto &tri_rasterized : v_want_to_draw) {
+
+      triangle clipped[2];
+      std::list<triangle> listTriangles;
+      listTriangles.push_back(tri_rasterized);
+      int newTriangles = 1;
+
+      for (int p = 0; p < 4; p++)
+	{
+	  int nTrisToAdd = 0;
+	  while (newTriangles > 0)
+	    {
+	      
+	      triangle test = listTriangles.front();
+	      listTriangles.pop_front();
+	      newTriangles--;
+	      switch (p)
+		{
+		case 0:	nTrisToAdd = clip_triangle_plane({ 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f }, test, clipped[0], clipped[1]); break;
+		case 1:	nTrisToAdd = clip_triangle_plane({ 0.0f, (float)height - 1, 0.0f }, { 0.0f, -1.0f, 0.0f }, test, clipped[0], clipped[1]); break;
+		case 2:	nTrisToAdd = clip_triangle_plane({ 0.0f, 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f }, test, clipped[0], clipped[1]); break;
+		case 3:	nTrisToAdd = clip_triangle_plane({ (float)width - 1, 0.0f, 0.0f }, { -1.0f, 0.0f, 0.0f }, test, clipped[0], clipped[1]); break;
+		}
+	      
+	      for (int w = 0; w < nTrisToAdd; w++)
+		listTriangles.push_back(clipped[w]);
+	    }
+	  newTriangles = listTriangles.size();
+	}
+
+      for(auto &t : listTriangles) {      
+	
+	tmp_draw_filled_tri((unsigned int)t.p[0].x,
+			    (unsigned int)t.p[1].x,
+			    (unsigned int)t.p[2].x,
+			    (unsigned int)t.p[0].y,
+			    (unsigned int)t.p[1].y,
+			    (unsigned int)t.p[2].y,
+			    t.col_rgb);
+	
+	if(wireframe_active){
+
+	  //why r bresenhams so slow lol
+          draw_triangle(t.p[0].x, t.p[0].y,
+			t.p[1].x, t.p[1].y,
+			t.p[2].x, t.p[2].y);
+	  
+	}      
+	
+      }
       
       // swap buffers??? hah i wish 
-
+      
     }
 
+    auto render_end = std::chrono::high_resolution_clock::now();
+    
     if(wireframe_active) {
       XSetForeground(display, gc, 0x00FF00);
       XDrawString(display, window, gc, 10, 50, "Wireframe - active", 18);
@@ -652,6 +693,9 @@ public:
       XDrawString(display, window, gc, 10, 50, "Wireframe - deactivated", 23);
     }
 
+    auto frame_time = std::chrono::duration_cast<std::chrono::nanoseconds>(render_end - render_start);
+    auto filter_time_calc = std::chrono::duration_cast<std::chrono::nanoseconds>(render_start - filter_time);
+    
     std::string cur_fov_str = "fFov - ";
     cur_fov_str += std::to_string(fFov);
     XSetForeground(display, gc, 0x00FF00);
@@ -661,6 +705,21 @@ public:
     cur_fps_str += std::to_string(avg_fps);
     XSetForeground(display, gc, 0xAAAAFF);
     XDrawString(display, window, gc, 10, 110, cur_fps_str.c_str(), cur_fps_str.length());
+
+    std::string filter_str = "vertex filter time (uS) - ";
+    filter_str += std::to_string(filter_time_calc.count() / 1000);
+    XSetForeground(display, gc, 0xAAAAFF);
+    XDrawString(display, window, gc, 10, 140, filter_str.c_str(), filter_str.length());
+    
+    std::string frame_time_str = "Frame time (uS)- ";
+    frame_time_str += std::to_string(frame_time.count() / 1000);
+    XSetForeground(display, gc, 0xAAAAFF);
+    XDrawString(display, window, gc, 10, 170, frame_time_str.c_str(), frame_time_str.length());
+    
+    std::string num_polygons = "loaded Polygons - ";
+    num_polygons +=  std::to_string(loaded_mesh.tris.size());
+    XSetForeground(display, gc, 0xFFAAFF);
+    XDrawString(display, window, gc, 10, 200, num_polygons.c_str(), num_polygons.length());
     
     
     frames_drawn++;
@@ -868,14 +927,14 @@ private:
 
   int clip_margin = 50;
   
-  //Optimization 
+  //Optimization and debug
   bool try_to_draw;
   bool draw_cooldown = false;
   bool shutdown = false;
 
   unsigned int frames_drawn = 0;
   float avg_fps = 0;
-  
+
   //Movement helpers (i know its shit impl but its x11 so theres no better way )
 
   bool try_move_foreward = false;
