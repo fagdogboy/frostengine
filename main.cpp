@@ -83,7 +83,7 @@ public:
     y = start_y;
     err = deltafastdirection / 2;
 
-    XDrawPoint(display,window,gc,x,y);
+    XDrawPoint(display,backBuffer,gc,x,y);
     
     for(t = 0; t < deltafastdirection; ++t)  {
 
@@ -102,7 +102,7 @@ public:
 
       }
 
-      XDrawPoint(display,window,gc,x,y);
+      XDrawPoint(display,backBuffer,gc,x,y);
 
     }
   }
@@ -154,7 +154,7 @@ public:
 
     XSetForeground(display,gc,color);
     
-    XDrawLine(display,window,gc,x1,y1,x2,y2);
+    XDrawLine(display,backBuffer,gc,x1,y1,x2,y2);
 
   }
 
@@ -195,7 +195,7 @@ public:
 
 	s >> junk >> f[0] >> f[1] >> f[2];
 	
-	output.tris.push_back({ vertices[f[0] - 1], vertices[f[1] - 1], vertices[f[2] - 1] , 0x000000 });
+	output.tris.push_back({ vertices[f[0] - 1], vertices[f[1] - 1], vertices[f[2] - 1] , /*texture*/ 0.0f, 1.0f, 0x000000 });
 
       }
       
@@ -291,14 +291,13 @@ public:
         
       if(draw_cooldown) {
 	
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
 	draw_cooldown = false;
 	printf("no \n");
 	
       }
       
       if(!draw_cooldown && try_to_draw) {
-
+	
         draw_cooldown = true;
 	try_to_draw = false;
 	printf("yes \n");
@@ -306,14 +305,14 @@ public:
 	render_screen();
 	
       } else {
-
+	
+	std::this_thread::sleep_for(std::chrono::milliseconds(5));
 	frames_drawn++;
-	printf("rendering attempt started, but detected not neccessary! \n");
 	
       }
-
-      std::this_thread::sleep_for(std::chrono::milliseconds(25));
-
+      
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+      
       if((try_move_backward || try_move_down || try_move_up || try_move_foreward || try_move_left || try_move_right || try_rotate_left || try_rotate_right))
 	try_to_render_screen();
       
@@ -332,7 +331,7 @@ public:
     triangle[1].x = v2x; triangle[1].y = v2y;
     triangle[2].x = v3x; triangle[2].y = v3y;
     
-    XFillPolygon(display, window ,gc, triangle, 3, 2, 0);
+    XFillPolygon(display, backBuffer ,gc, triangle, 3, 2, 0);
 
   }
   
@@ -489,7 +488,7 @@ public:
     XAllocColor(display, colormap, &color);
     
     XSetForeground(display, gc, color.pixel);
-    XDrawPoint(display, window, gc, x, y);
+    XDrawPoint(display, backBuffer, gc, x, y);
     XFlush(display);
     
   }
@@ -504,7 +503,6 @@ public:
     unsigned int border_width, depth;
     
     if (XGetGeometry(display, window, &root, &x, &y, &width, &height, &border_width, &depth)) {
-      std::cout << "Window size: " << width << "x" << height << std::endl;
     } else {
       std::cerr << "Failed to get window geometry" << std::endl;
     }
@@ -679,18 +677,16 @@ public:
 	
       }
       
-      // swap buffers??? hah i wish 
-      
     }
 
     auto render_end = std::chrono::high_resolution_clock::now();
     
     if(wireframe_active) {
       XSetForeground(display, gc, 0x00FF00);
-      XDrawString(display, window, gc, 10, 50, "Wireframe - active", 18);
+      XDrawString(display, backBuffer , gc, 10, 50, "Wireframe - active", 18);
     } else {
       XSetForeground(display, gc, 0xFF0000);
-      XDrawString(display, window, gc, 10, 50, "Wireframe - deactivated", 23);
+      XDrawString(display, backBuffer , gc, 10, 50, "Wireframe - deactivated", 23);
     }
 
     auto frame_time = std::chrono::duration_cast<std::chrono::nanoseconds>(render_end - render_start);
@@ -699,29 +695,36 @@ public:
     std::string cur_fov_str = "fFov - ";
     cur_fov_str += std::to_string(fFov);
     XSetForeground(display, gc, 0x00FF00);
-    XDrawString(display, window, gc, 10, 80, cur_fov_str.c_str(), cur_fov_str.length());
+    XDrawString(display, backBuffer , gc, 10, 80, cur_fov_str.c_str(), cur_fov_str.length());
 
     std::string cur_fps_str = "FPS (average) - ";
     cur_fps_str += std::to_string(avg_fps);
     XSetForeground(display, gc, 0xAAAAFF);
-    XDrawString(display, window, gc, 10, 110, cur_fps_str.c_str(), cur_fps_str.length());
+    XDrawString(display, backBuffer , gc, 10, 110, cur_fps_str.c_str(), cur_fps_str.length());
 
     std::string filter_str = "vertex filter time (uS) - ";
     filter_str += std::to_string(filter_time_calc.count() / 1000);
     XSetForeground(display, gc, 0xAAAAFF);
-    XDrawString(display, window, gc, 10, 140, filter_str.c_str(), filter_str.length());
+    XDrawString(display, backBuffer , gc, 10, 140, filter_str.c_str(), filter_str.length());
     
     std::string frame_time_str = "Frame time (uS)- ";
     frame_time_str += std::to_string(frame_time.count() / 1000);
     XSetForeground(display, gc, 0xAAAAFF);
-    XDrawString(display, window, gc, 10, 170, frame_time_str.c_str(), frame_time_str.length());
+    XDrawString(display, backBuffer , gc, 10, 170, frame_time_str.c_str(), frame_time_str.length());
     
     std::string num_polygons = "loaded Polygons - ";
     num_polygons +=  std::to_string(loaded_mesh.tris.size());
     XSetForeground(display, gc, 0xFFAAFF);
-    XDrawString(display, window, gc, 10, 200, num_polygons.c_str(), num_polygons.length());
+    XDrawString(display, backBuffer , gc, 10, 200, num_polygons.c_str(), num_polygons.length());
+
+    // swap buffers??? hah i wish 
     
+    XCopyArea(display, backBuffer, window, gc, 0, 0, width, height, 0, 0);
     
+    // SWAPPING BUFFERS!!!???
+    
+    XSync(display, False);
+      
     frames_drawn++;
     
     XFlush(display);
@@ -740,11 +743,19 @@ public:
     camera.y = 0.0f;
     camera.z = 0.0f;
 
+    backBuffer = XCreatePixmap(display, window, width, height, DefaultDepth(display, screen));
+  
     screen = DefaultScreen(display);
     
     XEvent event;
     while (true) {
 
+      // pixmaps suck :(
+      XSetForeground(display,gc,0x000000);
+      XFillRectangle(display, backBuffer, gc, 0, 0, width, height);
+
+      XSync(display, False);
+      
       XNextEvent(display, &event);
 
       if (event.type == Expose) {
@@ -879,7 +890,7 @@ private:
 
   float change_rate = 0.15f;
   
-  bool wireframe_active = true;
+  bool wireframe_active = false;
 
   //X11
   Display* display;
@@ -887,6 +898,8 @@ private:
   GC gc;
   Window root;
   int screen;
+
+  Pixmap backBuffer;
   
   unsigned int width;
   unsigned int height;

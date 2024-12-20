@@ -10,10 +10,17 @@ struct vec3d {
   
 };
 
+struct vec2d {
+
+  float u = 0;
+  float v = 0;
+  
+};
+
 struct triangle {
   
   vec3d p[3];
-
+  vec2d t[3];
   unsigned long col_rgb;
   
 };
