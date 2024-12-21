@@ -1,6 +1,6 @@
-# crapengine!!!
+# frostengine!!!
 
- i mean the title says it all xd. its single threaded, but still performs pretty well.
+ WIP wip wiiiip argh. It works, its single threaded, but still performs pretty well ngl.
  
  its written in plain cpp20 and x11 to draw indiviual pixels to a window. the rest is entirely made from scratch.
  
