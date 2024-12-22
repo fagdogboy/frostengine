@@ -1,5 +1,10 @@
 #pragma once
 
+enum model_types {
+  LIGHT,
+  MESH_HOLLOW
+};
+
 struct vec3d {
 
   float x = 0;

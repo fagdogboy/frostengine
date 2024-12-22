@@ -5,6 +5,7 @@
 #include <X11/X.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <X11/extensions/XShm.h>
 #include <iostream>
 #include <vector>
 #include "math.h"
@@ -14,7 +15,8 @@
 #include <chrono>
 #include <thread>
 #include <list>
-
+#include <sys/shm.h>
+#include <sys/ipc.h>
 #include "utility.h"
 #include "model.h"
 #include "light.h"
@@ -436,11 +438,14 @@ public:
     gc = XCreateGC(display, window, 0, nullptr);
 
     loaded_mesh = import_obj_mesh(FILE_TO_IMPORT);
-    
+        
   }
   
   ~XlibApp() {
+    //painge
     shutdown = true;
+    shmdt(shminfo.shmaddr);
+    shmctl(shminfo.shmid, IPC_RMID, 0);   
     XFreeGC(display, gc);
     XDestroyWindow(display, window);
     XCloseDisplay(display);
@@ -495,6 +500,7 @@ public:
   
   void render_screen() {
 
+    //clear canvas
     XSetForeground(display,gc,0x000000);
     XFillRectangle(display, backBuffer, gc, 0, 0, width, height);     
     
@@ -510,9 +516,6 @@ public:
       std::cerr << "Failed to get window geometry" << std::endl;
     }
     
-    XSetForeground(display, gc , 0x000000);
-    XFillRectangle(display, window, gc , 0, 0, width, height);
-
     std::vector<triangle> v_want_to_draw;
 
     matRotZ = matrix_make_rotate_z(fThetaZ);
@@ -524,7 +527,7 @@ public:
     //tjmat
     
     //x y z
-    matTrans = matrix_make_translate(5.0f,3.0f,10.0f);
+    matTrans = matrix_make_translate(5.0f,10.0f,10.0f);
 
     //matrix allocation
     matWorld = matrix_make_static_identity();
@@ -566,7 +569,7 @@ public:
 	
 	if( vector_DotProduct(normal, camera_ray) < 0.0f ) {
 	  
-	  vec3d light_source = { 0.0f, 0.0f, -1.0f };
+	  vec3d light_source = { 0.0f, 5.0f, -1.0f };
 	  light_source = vector_Normalise(light_source);
 	  float dp_light = normal.x * light_source.x + normal.y * light_source.y + normal.z * light_source.z;
 
@@ -749,6 +752,15 @@ public:
     backBuffer = XCreatePixmap(display, window, width, height, DefaultDepth(display, screen));
   
     screen = DefaultScreen(display);
+
+    shminfo.shmid = shmget(IPC_PRIVATE, width * height * 4, IPC_CREAT | 0777);
+    shminfo.shmaddr = (char*)shmat(shminfo.shmid, 0, 0);
+    shminfo.readOnly = False;
+
+    if (shminfo.shmaddr == (void *)-1) {
+      std::cout << "unable to allocate shm!" << std::endl;
+      return;
+    }
     
     XEvent event;
     while (true) {
@@ -897,7 +909,8 @@ private:
   GC gc;
   Window root;
   int screen;
-
+  XShmSegmentInfo shminfo;
+  
   Pixmap backBuffer;
   
   unsigned int width;
@@ -957,6 +970,9 @@ private:
   bool try_move_down = false;
   bool try_rotate_left = false;
   bool try_rotate_right = false;
+
+  //data structure to hold abstracted models
+  std::vector<model> loaded_models;
   
 };
 
