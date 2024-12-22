@@ -158,6 +158,53 @@ public:
 
   }
 
+  mesh import_obj_mesh(std::string file_path) {
+
+    mesh output;
+    
+    std::ifstream file(file_path);
+    if(!file.is_open())
+      std::cout << "imort mesh not found!!!" << std::endl;
+
+    std::vector<vec3d> vertices;
+    
+    while(!file.eof()) {
+
+      char line[1024];
+      file.getline(line,1024);
+
+      std::strstream s;
+
+      s << line;
+
+      char junk;
+
+      if(line[0] == 'v') {
+
+	vec3d vec;
+
+	s >> junk >> vec.x >> vec.y >> vec.z;
+
+        vertices.push_back(vec);
+
+      }
+      
+      if(line[0] == 'f') {
+
+	int f[3];
+
+	s >> junk >> f[0] >> f[1] >> f[2];
+	
+	output.tris.push_back({ vertices[f[0] - 1], vertices[f[1] - 1], vertices[f[2] - 1] , /*texture*/ 0.0f, 1.0f, 0x000000 });
+
+      }
+      
+    }
+    
+    return output;
+
+  }
+
   void try_to_render_screen() {    
 
     try_to_draw = true;
