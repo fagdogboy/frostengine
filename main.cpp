@@ -1,15 +1,13 @@
-#include <X11/X.h>
-#include <iomanip>
 #define FILL_COLOR 0xAA22BB
 #define BORDER_COLOR 0x000000
 #define FILE_TO_IMPORT "keyboard.obj"
 
+#include <X11/X.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <iostream>
 #include <vector>
 #include "math.h"
-#include <sstream>
 #include <fstream>
 #include <strstream>
 #include <algorithm>
@@ -18,6 +16,8 @@
 #include <list>
 
 #include "utility.h"
+#include "model.h"
+#include "light.h"
 
 void multiply_matrix_vector(vec3d &i, vec3d &o, mat4x4 &m) {
 
@@ -495,6 +495,9 @@ public:
   
   void render_screen() {
 
+    XSetForeground(display,gc,0x000000);
+    XFillRectangle(display, backBuffer, gc, 0, 0, width, height);     
+    
     draw_cooldown = true;
 
     auto filter_time = std::chrono::high_resolution_clock::now();
@@ -718,12 +721,12 @@ public:
     XDrawString(display, backBuffer , gc, 10, 200, num_polygons.c_str(), num_polygons.length());
 
     // swap buffers??? hah i wish 
+
+    XSync(display, False);
     
     XCopyArea(display, backBuffer, window, gc, 0, 0, width, height, 0, 0);
     
-    // SWAPPING BUFFERS!!!???
-    
-    XSync(display, False);
+    // SWAPPING BUFFERS!!!??
       
     frames_drawn++;
     
@@ -751,10 +754,6 @@ public:
     while (true) {
 
       // pixmaps suck :(
-      XSetForeground(display,gc,0x000000);
-      XFillRectangle(display, backBuffer, gc, 0, 0, width, height);
-
-      XSync(display, False);
       
       XNextEvent(display, &event);
 

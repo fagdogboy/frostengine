@@ -1,6 +1,5 @@
 #pragma once
 
-
 struct vec3d {
 
   float x = 0;
