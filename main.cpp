@@ -1,6 +1,6 @@
 #define FILL_COLOR 0xAA22BB
 #define BORDER_COLOR 0x000000
-#define FILE_TO_IMPORT "keyboard.obj"
+#define FILE_TO_IMPORT "floor.obj"
 
 #include <X11/X.h>
 #include <X11/Xlib.h>
@@ -17,6 +17,7 @@
 #include <list>
 #include <sys/shm.h>
 #include <sys/ipc.h>
+
 #include "utility.h"
 #include "model.h"
 #include "light.h"
@@ -244,6 +245,8 @@ public:
       if (try_move_right) {
 	
 	vec3d cam_foreward_step = vector_Mul(look_dir, 0.04f);
+
+	vector_Normalise(cam_foreward_step);
 	
 	vec3d cam_foreward = vector_Mul(cam_foreward_step,x_pos);
 	
@@ -262,8 +265,12 @@ public:
       }
 
       if (try_move_left) {
+
+	vec3d cam_foreward_step = vector_Mul(look_dir, 0.04f);
+
+	vector_Normalise(cam_foreward_step);
 	
-	vec3d cam_foreward = vector_Mul(look_dir, 0.04 *  x_pos);
+	vec3d cam_foreward = vector_Mul(cam_foreward_step, x_pos);
 	
 	vec3d cam_sideward = cam_foreward;
 	cam_sideward.y = 0.0f;
@@ -500,14 +507,6 @@ public:
   
   void render_screen() {
 
-    //clear canvas
-    XSetForeground(display,gc,0x000000);
-    XFillRectangle(display, backBuffer, gc, 0, 0, width, height);     
-    
-    draw_cooldown = true;
-
-    auto filter_time = std::chrono::high_resolution_clock::now();
-    
     int x, y; 
     unsigned int border_width, depth;
     
@@ -516,70 +515,80 @@ public:
       std::cerr << "Failed to get window geometry" << std::endl;
     }
     
-    std::vector<triangle> v_want_to_draw;
-
-    matRotZ = matrix_make_rotate_z(fThetaZ);
-    matRotX = matrix_make_rotate_x(fThetaX);
-    matRotY = matrix_make_rotate_y(fThetaY);
-
-    matProj = matrix_make_projection(fFov, (float)height / (float)width, 0.1f, 100.0f);
-
-    //tjmat
-    
-    //x y z
-    matTrans = matrix_make_translate(5.0f,10.0f,10.0f);
-
-    //matrix allocation
-    matWorld = matrix_make_static_identity();
-    matWorld = matrix_mul_matrix(matWorld,matRotX);
-    matWorld = matrix_mul_matrix(matWorld,matRotY);
-    matWorld = matrix_mul_matrix(matWorld,matRotZ);
-    matWorld = matrix_mul_matrix(matWorld,matTrans);
-
-    vec3d up = {0,1,0};
-    vec3d target = {0,0,1};
-    mat4x4 cam_rot = matrix_make_rotate_y(cam_yaw);
-    look_dir = matrix_multiply_vector(cam_rot, target);
-    target = vector_Add(camera, look_dir);
-    mat4x4 camera_mat = matrix_PointAt(camera, target, up);
-
-    mat4x4 view_mat = matrix_QuickInverse(camera_mat);
-    
-    for(auto tri : loaded_mesh.tris) {
+    //clear canvas
+    XSetForeground(display,gc,0x000000);
+    XFillRectangle(display, backBuffer, gc, 0, 0, width, height);     
+        
+    for(auto mesh_to_render : loaded_models) {
+            
+      draw_cooldown = true;
       
-      triangle triProjected; 
-      triangle triTransformed;
-      triangle triViewed;
-
-      triTransformed.p[0] = matrix_multiply_vector(matWorld,tri.p[0]);
-      triTransformed.p[1] = matrix_multiply_vector(matWorld,tri.p[1]);
-      triTransformed.p[2] = matrix_multiply_vector(matWorld,tri.p[2]);
+      auto filter_time = std::chrono::high_resolution_clock::now();
       
-      vec3d normal, vec1, vec2;
- 
-      //vecs that span surface
-      vec1 = vector_Sub(triTransformed.p[1], triTransformed.p[0]);
-      vec2 = vector_Sub(triTransformed.p[2], triTransformed.p[0]);
-
-      // normal of surface
-      normal = vector_CrossProduct(vec1,vec2);
-      normal = vector_Normalise(normal);
-
-      vec3d camera_ray = vector_Sub(triTransformed.p[0], camera);
+      std::vector<triangle> v_want_to_draw;
+      
+      matRotZ = matrix_make_rotate_z(mesh_to_render.fThetaZ);
+      matRotX = matrix_make_rotate_x(mesh_to_render.fThetaX);
+      matRotY = matrix_make_rotate_y(mesh_to_render.fThetaY);
+      
+      matProj = matrix_make_projection(fFov, (float)height / (float)width, 0.1f, 100.0f);
+      
+      //tjmat
+      
+      //x y z
+      matTrans = matrix_make_translate(5.0f,10.0f,10.0f);
+      
+      //matrix allocation
+      matWorld = matrix_make_static_identity();
+      matWorld = matrix_mul_matrix(matWorld,matRotX);
+      matWorld = matrix_mul_matrix(matWorld,matRotY);
+      matWorld = matrix_mul_matrix(matWorld,matRotZ);
+      matWorld = matrix_mul_matrix(matWorld,matTrans);
+      
+      vec3d up = {0,1,0};
+      vec3d target = {0,0,1};
+      mat4x4 cam_rot = matrix_make_rotate_y(cam_yaw);
+      look_dir = matrix_multiply_vector(cam_rot, target);
+      target = vector_Add(camera, look_dir);
+      mat4x4 camera_mat = matrix_PointAt(camera, target, up);
+      
+      mat4x4 view_mat = matrix_QuickInverse(camera_mat);
+      
+      for(auto tri : mesh_to_render.model_data.tris) {
+	
+	triangle triProjected; 
+	triangle triTransformed;
+	triangle triViewed;
+	
+	triTransformed.p[0] = matrix_multiply_vector(matWorld,tri.p[0]);
+	triTransformed.p[1] = matrix_multiply_vector(matWorld,tri.p[1]);
+	triTransformed.p[2] = matrix_multiply_vector(matWorld,tri.p[2]);
+	
+	vec3d normal, vec1, vec2;
+	
+	//vecs that span surface
+	vec1 = vector_Sub(triTransformed.p[1], triTransformed.p[0]);
+	vec2 = vector_Sub(triTransformed.p[2], triTransformed.p[0]);
+	
+	// normal of surface
+	normal = vector_CrossProduct(vec1,vec2);
+	normal = vector_Normalise(normal);
+	
+	vec3d camera_ray = vector_Sub(triTransformed.p[0], camera);
 	
 	if( vector_DotProduct(normal, camera_ray) < 0.0f ) {
 	  
 	  vec3d light_source = { 0.0f, 5.0f, -1.0f };
 	  light_source = vector_Normalise(light_source);
 	  float dp_light = normal.x * light_source.x + normal.y * light_source.y + normal.z * light_source.z;
-
+	  
 	  triTransformed.col_rgb  = float_to_rgb_grayscale( dp_light );
-
+	  
 	  // world -> view
 	  triViewed.p[0] = matrix_multiply_vector(view_mat, triTransformed.p[0]);
 	  triViewed.p[1] = matrix_multiply_vector(view_mat, triTransformed.p[1]);
 	  triViewed.p[2] = matrix_multiply_vector(view_mat, triTransformed.p[2]);
-
+	  
 	  int nClippedTriangles = 0;
 	  triangle clipped[2];
 	  nClippedTriangles = clip_triangle_plane({ 0.0f, 0.0f, 0.5f }, { 0.0f, 0.0f, 1.0f }, triViewed, clipped[0], clipped[1]);
@@ -736,8 +745,20 @@ public:
     XFlush(display);
 
     draw_cooldown = false;
+
+  }
+  //done with each component
     
   }    
+
+  void load_model(std::string to_load) {
+
+    model imported_model = model(import_obj_mesh(to_load),0.0f,0.0f,0.0f,0.0f,0.0f,0.0f);
+    
+    loaded_models.push_back(imported_model);
+
+    return;
+  }
   
   void run() {
 
@@ -977,7 +998,14 @@ private:
 };
 
 int main() {
-    XlibApp app(800, 600);
-    app.run();
-    return 0;
+  //init window
+  XlibApp app(800, 600);
+
+  //load models
+  app.load_model("keyboard.obj");
+  app.load_model("floor.obj");
+
+  //start engine
+  app.run();
+  return 0;
 }

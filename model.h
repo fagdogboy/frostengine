@@ -76,6 +76,19 @@ class model {
 
   }
 
-
-  
+  model( mesh mesh_data_in,
+              float thetaX = 0.0f, 
+              float thetaY = 0.0f, 
+              float thetaZ = 0.0f,
+              float positionX = 0.0f, 
+              float positionY = 0.0f, 
+              float positionZ = 0.0f)
+        : model_data(mesh_data_in),
+          fThetaX(thetaX), 
+          fThetaY(thetaY), 
+          fThetaZ(thetaZ),
+          fPosition_X(positionX), 
+          fPosition_Y(positionY), 
+          fPosition_Z(positionZ) {
+    }  
 };
