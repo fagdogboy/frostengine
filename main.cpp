@@ -995,8 +995,8 @@ int main() {
   XlibApp app(1920, 1080);
 
   //load models
-  app.load_model("keyboard.obj",0.0f,0.0f,0.0f,0.0f,0.0f,0.0f);
-  app.load_model("floor.obj",90.0f,0.0f,10.0f,0.0f,-10.0f,0.0f);
+  app.load_model("models/keyboard.obj",0.0f,0.0f,0.0f,0.0f,0.0f,0.0f);
+  app.load_model("models/floor.obj",90.0f,0.0f,10.0f,0.0f,-10.0f,0.0f);
 
   //start engine
   app.run();
