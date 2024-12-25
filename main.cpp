@@ -243,42 +243,22 @@ public:
 
       if (try_move_right) {
 	
-	vec3d cam_foreward_step = vector_Mul(look_dir, 0.04f);
+	mat4x4 rot_x = matrix_make_rotate_y(-1.5707963268f);
 
-	vector_Normalise(cam_foreward_step);
-	
-	vec3d cam_foreward = vector_Mul(cam_foreward_step,x_pos);
-	
-	vec3d cam_sideward = cam_foreward;
-	cam_sideward.y = 0.0f;
-	
-	vec3d cam_modified;
-	
-	cam_modified.x = cam_sideward.z;
-	cam_modified.z = cam_sideward.x * -1.0f;
-	cam_modified.y = cam_foreward.y;
-	
+	vec3d cam_modified = matrix_multiply_vector(rot_x,look_dir);
+		
 	camera = vector_Sub(camera, cam_modified);
+
+	printf("%f x. %f  y %f z", camera.x,camera.y,camera.z);
 	
 	x_pos -= 0.01f;	 	
       }
 
       if (try_move_left) {
-
-	vec3d cam_foreward_step = vector_Mul(look_dir, 0.04f);
-
-	vector_Normalise(cam_foreward_step);
 	
-	vec3d cam_foreward = vector_Mul(cam_foreward_step, x_pos);
+	mat4x4 rot_x = matrix_make_rotate_y(1.5707963268f);
 	
-	vec3d cam_sideward = cam_foreward;
-	cam_sideward.y = 0.0f;
-	
-	vec3d cam_modified;
-	
-	cam_modified.x = cam_sideward.z * -1.0f;
-	cam_modified.z = cam_sideward.x;
-	cam_modified.y = cam_foreward.y;
+	vec3d cam_modified = matrix_multiply_vector(rot_x,look_dir);
 	
 	camera = vector_Sub(camera, cam_modified);
 	
