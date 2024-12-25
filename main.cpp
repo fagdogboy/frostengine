@@ -535,7 +535,7 @@ public:
       
       //tjmat
       
-      matTrans = matrix_make_translate(5.0f,10.0f,10.0f);
+      matTrans = matrix_make_translate(mesh_to_render.fPosition_X,mesh_to_render.fPosition_Y,mesh_to_render.fPosition_Z);
       
       //matrix allocation
       matWorld = matrix_make_static_identity();
@@ -757,9 +757,9 @@ public:
     
   }    
 
-  void load_model(std::string to_load) {
+  void load_model(std::string to_load, float theta_x_in, float theta_y_in, float theta_z_in, float rot_x_in, float rot_y_in, float rot_z_in  ) {
 
-    model imported_model = model(import_obj_mesh(to_load),0.0f,0.0f,0.0f,0.0f,0.0f,0.0f);
+    model imported_model = model(import_obj_mesh(to_load) , theta_x_in , theta_y_in , theta_z_in , rot_x_in , rot_y_in , rot_z_in);
     
     loaded_models.push_back(imported_model);
 
@@ -1009,8 +1009,8 @@ int main() {
   XlibApp app(1920, 1080);
 
   //load models
-  app.load_model("keyboard.obj");
-  app.load_model("floor.obj");
+  app.load_model("keyboard.obj",0.0f,0.0f,0.0f,0.0f,0.0f,0.0f);
+  app.load_model("floor.obj",90.0f,0.0f,10.0f,0.0f,-10.0f,0.0f);
 
   //start engine
   app.run();
