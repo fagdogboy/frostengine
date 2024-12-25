@@ -245,11 +245,13 @@ public:
 	
 	mat4x4 rot_x = matrix_make_rotate_y(-1.5707963268f);
 
-	vec3d cam_modified = matrix_multiply_vector(rot_x,look_dir);
+	vec3d normal_look_dir = vector_Mul(look_dir,0.04f);
+
+	vector_Normalise(normal_look_dir);
+	
+	vec3d cam_modified = matrix_multiply_vector(rot_x,normal_look_dir);
 		
 	camera = vector_Sub(camera, cam_modified);
-
-	printf("%f x. %f  y %f z", camera.x,camera.y,camera.z);
 	
 	x_pos -= 0.01f;	 	
       }
@@ -258,7 +260,11 @@ public:
 	
 	mat4x4 rot_x = matrix_make_rotate_y(1.5707963268f);
 	
-	vec3d cam_modified = matrix_multiply_vector(rot_x,look_dir);
+	vec3d normal_look_dir = vector_Mul(look_dir,0.04f);
+
+	vector_Normalise(normal_look_dir);
+	
+	vec3d cam_modified = matrix_multiply_vector(rot_x,normal_look_dir);
 	
 	camera = vector_Sub(camera, cam_modified);
 	
