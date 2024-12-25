@@ -252,12 +252,11 @@ int clip_triangle_plane(vec3d plane_p,
                         triangle &out_tri1,
 			triangle &out_tri2)
 {
-
+  
   plane_n = vector_Normalise(plane_n);
   
   auto dist = [&](vec3d &p)
-    {
-      vec3d n = vector_Normalise(p);
+    {      
       return (plane_n.x * p.x + plane_n.y * p.y + plane_n.z * p.z - vector_DotProduct(plane_n, plane_p));
     };
   
@@ -316,5 +315,6 @@ int clip_triangle_plane(vec3d plane_p,
       
       return 2; 
     }
-  
+
+  return 0;
 }

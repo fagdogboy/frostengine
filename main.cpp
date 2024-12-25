@@ -1,6 +1,5 @@
 #define FILL_COLOR 0xAA22BB
 #define BORDER_COLOR 0x000000
-#define FILE_TO_IMPORT "floor.obj"
 
 #include <X11/X.h>
 #include <X11/Xlib.h>
@@ -53,7 +52,7 @@ public:
   //this is a nightmare
   void draw_bresenham_line(unsigned int start_x, unsigned int start_y, unsigned int end_x, unsigned int end_y, unsigned long color) {
 
-    XSetForeground(display,gc,color);
+    XSetForeground(display,bb_gc,color);
     
     int x, y, t, dx, dy, incx, incy, pdx, pdy, ddx, ddy, deltaslowdirection, deltafastdirection, err;
     
@@ -86,7 +85,7 @@ public:
     y = start_y;
     err = deltafastdirection / 2;
 
-    XDrawPoint(display,backBuffer,gc,x,y);
+    XDrawPoint(display,backBuffer,bb_gc,x,y);
     
     for(t = 0; t < deltafastdirection; ++t)  {
 
@@ -105,7 +104,7 @@ public:
 
       }
 
-      XDrawPoint(display,backBuffer,gc,x,y);
+      XDrawPoint(display,backBuffer,bb_gc,x,y);
 
     }
   }
@@ -155,9 +154,9 @@ public:
 
   void draw_horizontal_line(unsigned int x1, unsigned int x2, unsigned int y1, unsigned int y2, unsigned long color) {
 
-    XSetForeground(display,gc,color);
+    XSetForeground(display,bb_gc,color);
     
-    XDrawLine(display,backBuffer,gc,x1,y1,x2,y2);
+    XDrawLine(display,backBuffer,bb_gc,x1,y1,x2,y2);
 
   }
 
@@ -220,7 +219,7 @@ public:
 
     auto start_time = std::chrono::steady_clock::now();
     
-    while(!shutdown) {      
+    while(true) {      
 
       auto cur_time = std::chrono::steady_clock::now();
 
@@ -299,7 +298,7 @@ public:
 	cam_yaw -= change_rate * 0.2f;	 
         
       if(draw_cooldown) {
-	
+	std::this_thread::sleep_for(std::chrono::milliseconds(50));
 	draw_cooldown = false;
 	printf("no \n");
 	
@@ -309,9 +308,12 @@ public:
 	
         draw_cooldown = true;
 	try_to_draw = false;
+	
 	printf("yes \n");
 	
 	render_screen();
+
+	draw_cooldown = false;
 	
       } else {
 	
@@ -323,24 +325,25 @@ public:
       std::this_thread::sleep_for(std::chrono::milliseconds(5));
       
       if((try_move_backward || try_move_down || try_move_up || try_move_foreward || try_move_left || try_move_right || try_rotate_left || try_rotate_right))
-	try_to_render_screen();
-      
+	{
+	  printf("tryna rtender screen \n");
+	  render_screen();
+	}
+
     }
-
-    return;
-
+    printf("window runtime helper shutdown!\n"); 
   }
   
   void tmp_draw_filled_tri(unsigned int v1x, unsigned int v2x, unsigned int v3x, unsigned int v1y, unsigned int v2y, unsigned int v3y, unsigned long color) {
     
-    XSetForeground(display,gc,color);
+    XSetForeground(display,bb_gc,color);
     
     XPoint triangle[3];
     triangle[0].x = v1x; triangle[0].y = v1y;
     triangle[1].x = v2x; triangle[1].y = v2y;
     triangle[2].x = v3x; triangle[2].y = v3y;
     
-    XFillPolygon(display, backBuffer ,gc, triangle, 3, 2, 0);
+    XFillPolygon(display, backBuffer ,bb_gc, triangle, 3, 2, 0);
 
   }
   
@@ -444,8 +447,10 @@ public:
     
     gc = XCreateGC(display, window, 0, nullptr);
 
-    loaded_mesh = import_obj_mesh(FILE_TO_IMPORT);
-        
+    backBuffer = XCreatePixmap(display, window, width, height, DefaultDepth(display, screen));
+    
+    bb_gc = XCreateGC(display,backBuffer,0,nullptr);
+    
   }
   
   ~XlibApp() {
@@ -482,12 +487,12 @@ public:
   
   void draw_triangle(int x1, int y1, int x2, int y2, int x3, int y3) {
     
-    XSetForeground(display, gc, BlackPixel(display, DefaultScreen(display)));
+    XSetForeground(display, bb_gc, BlackPixel(display, DefaultScreen(display)));
     
     draw_bresenham_line(x1, y1, x2, y2, BORDER_COLOR);
     draw_bresenham_line(x2, y2, x3, y3, BORDER_COLOR); 
     draw_bresenham_line(x3, y3, x1, y1, BORDER_COLOR);
-    XFlush(display);
+    //    XFlush(display);
   }
   
   void draw_pixel(int x, int y, unsigned char r, unsigned char g, unsigned char b) {
@@ -499,34 +504,29 @@ public:
     color.blue = (b << 8);
     XAllocColor(display, colormap, &color);
     
-    XSetForeground(display, gc, color.pixel);
-    XDrawPoint(display, backBuffer, gc, x, y);
-    XFlush(display);
+    XSetForeground(display, bb_gc, color.pixel);
+    XDrawPoint(display, backBuffer, bb_gc, x, y);
+    //XFlush(display);
     
   }
   
   void render_screen() {
-
+    
     int x, y; 
     unsigned int border_width, depth;
     
     if (XGetGeometry(display, window, &root, &x, &y, &width, &height, &border_width, &depth)) {
+      std::cout << "got win geom" << std::endl;
     } else {
       std::cerr << "Failed to get window geometry" << std::endl;
-    }
+    }        
     
-    //clear canvas
-    XSetForeground(display,gc,0x000000);
-    XFillRectangle(display, backBuffer, gc, 0, 0, width, height);     
-        
+    auto filter_time = std::chrono::high_resolution_clock::now();
+    
+    std::vector<triangle> v_want_to_draw;
+    
     for(auto mesh_to_render : loaded_models) {
-            
-      draw_cooldown = true;
-      
-      auto filter_time = std::chrono::high_resolution_clock::now();
-      
-      std::vector<triangle> v_want_to_draw;
-      
+                  
       matRotZ = matrix_make_rotate_z(mesh_to_render.fThetaZ);
       matRotX = matrix_make_rotate_x(mesh_to_render.fThetaX);
       matRotY = matrix_make_rotate_y(mesh_to_render.fThetaY);
@@ -535,7 +535,6 @@ public:
       
       //tjmat
       
-      //x y z
       matTrans = matrix_make_translate(5.0f,10.0f,10.0f);
       
       //matrix allocation
@@ -627,22 +626,30 @@ public:
 	  
 	}      
 
+      }
+      
+      //shoutout to stdlib
+      sort(v_want_to_draw.begin(), v_want_to_draw.end(), [](triangle &t1, triangle &t2) {
+	
+	float z1 = (t1.p[0].z + t1.p[1].z + t1.p[2].z) / 3.0f;
+	float z2 = (t2.p[0].z + t2.p[1].z + t2.p[2].z) / 3.0f;
+	
+	return z1 > z2;
+	
+      });      
+      
     }
-    
-    //shoutout to stdlib
-    sort(v_want_to_draw.begin(), v_want_to_draw.end(), [](triangle &t1, triangle &t2) {
-
-      float z1 = (t1.p[0].z + t1.p[1].z + t1.p[2].z) / 3.0f;
-      float z2 = (t2.p[0].z + t2.p[1].z + t2.p[2].z) / 3.0f;
-
-      return z1 > z2;
-
-    });
 
     auto render_start = std::chrono::high_resolution_clock::now();
     
+    //done with each component    
+    
+    //clear canvas
+    XSetForeground(display,bb_gc,0x000000);
+    XFillRectangle(display, backBuffer, bb_gc, 0, 0, width, height);     
+    
     for(auto &tri_rasterized : v_want_to_draw) {
-
+      
       triangle clipped[2];
       std::list<triangle> listTriangles;
       listTriangles.push_back(tri_rasterized);
@@ -697,11 +704,11 @@ public:
     auto render_end = std::chrono::high_resolution_clock::now();
     
     if(wireframe_active) {
-      XSetForeground(display, gc, 0x00FF00);
-      XDrawString(display, backBuffer , gc, 10, 50, "Wireframe - active", 18);
+      XSetForeground(display, bb_gc, 0x00FF00);
+      XDrawString(display, backBuffer , bb_gc, 10, 50, "Wireframe - active", 18);
     } else {
-      XSetForeground(display, gc, 0xFF0000);
-      XDrawString(display, backBuffer , gc, 10, 50, "Wireframe - deactivated", 23);
+      XSetForeground(display, bb_gc, 0xFF0000);
+      XDrawString(display, backBuffer , bb_gc, 10, 50, "Wireframe - deactivated", 23);
     }
 
     auto frame_time = std::chrono::duration_cast<std::chrono::nanoseconds>(render_end - render_start);
@@ -709,45 +716,44 @@ public:
     
     std::string cur_fov_str = "fFov - ";
     cur_fov_str += std::to_string(fFov);
-    XSetForeground(display, gc, 0x00FF00);
-    XDrawString(display, backBuffer , gc, 10, 80, cur_fov_str.c_str(), cur_fov_str.length());
+    XSetForeground(display, bb_gc, 0x00FF00);
+    XDrawString(display, backBuffer , bb_gc, 10, 80, cur_fov_str.c_str(), cur_fov_str.length());
 
     std::string cur_fps_str = "FPS (average) - ";
     cur_fps_str += std::to_string(avg_fps);
-    XSetForeground(display, gc, 0xAAAAFF);
-    XDrawString(display, backBuffer , gc, 10, 110, cur_fps_str.c_str(), cur_fps_str.length());
+    XSetForeground(display, bb_gc, 0xAAAAFF);
+    XDrawString(display, backBuffer , bb_gc, 10, 110, cur_fps_str.c_str(), cur_fps_str.length());
 
     std::string filter_str = "vertex filter time (uS) - ";
     filter_str += std::to_string(filter_time_calc.count() / 1000);
-    XSetForeground(display, gc, 0xAAAAFF);
-    XDrawString(display, backBuffer , gc, 10, 140, filter_str.c_str(), filter_str.length());
+    XSetForeground(display, bb_gc, 0xAAAAFF);
+    XDrawString(display, backBuffer , bb_gc, 10, 140, filter_str.c_str(), filter_str.length());
     
     std::string frame_time_str = "Frame time (uS)- ";
     frame_time_str += std::to_string(frame_time.count() / 1000);
-    XSetForeground(display, gc, 0xAAAAFF);
-    XDrawString(display, backBuffer , gc, 10, 170, frame_time_str.c_str(), frame_time_str.length());
+    XSetForeground(display, bb_gc, 0xAAAAFF);
+    XDrawString(display, backBuffer , bb_gc, 10, 170, frame_time_str.c_str(), frame_time_str.length());
     
     std::string num_polygons = "loaded Polygons - ";
-    num_polygons +=  std::to_string(loaded_mesh.tris.size());
-    XSetForeground(display, gc, 0xFFAAFF);
-    XDrawString(display, backBuffer , gc, 10, 200, num_polygons.c_str(), num_polygons.length());
+    num_polygons +=  std::to_string(loaded_models[0].model_data.tris.size());
+    XSetForeground(display, bb_gc, 0xFFAAFF);
+    XDrawString(display, backBuffer , bb_gc, 10, 200, num_polygons.c_str(), num_polygons.length());
 
     // swap buffers??? hah i wish 
 
     XSync(display, False);
     
     XCopyArea(display, backBuffer, window, gc, 0, 0, width, height, 0, 0);
-    
+
+    XSync(display, False);
+	
     // SWAPPING BUFFERS!!!??
-      
-    frames_drawn++;
+
+    printf("frame drawn!\n");
     
-    XFlush(display);
-
+    frames_drawn++;   
+    
     draw_cooldown = false;
-
-  }
-  //done with each component
     
   }    
 
@@ -769,8 +775,6 @@ public:
     camera.x = 0.0f;
     camera.y = 0.0f;
     camera.z = 0.0f;
-
-    backBuffer = XCreatePixmap(display, window, width, height, DefaultDepth(display, screen));
   
     screen = DefaultScreen(display);
 
@@ -790,6 +794,8 @@ public:
       
       XNextEvent(display, &event);
 
+      printf("waiting for next event \n");
+      
       if (event.type == Expose) {
 	
 	int x, y; 
@@ -933,6 +939,7 @@ private:
   XShmSegmentInfo shminfo;
   
   Pixmap backBuffer;
+  GC bb_gc;
   
   unsigned int width;
   unsigned int height;
@@ -999,7 +1006,7 @@ private:
 
 int main() {
   //init window
-  XlibApp app(800, 600);
+  XlibApp app(1920, 1080);
 
   //load models
   app.load_model("keyboard.obj");
