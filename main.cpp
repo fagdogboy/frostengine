@@ -289,6 +289,8 @@ public:
 	printf("no \n");
 	
       }
+
+      	render_screen();
       
       if(!draw_cooldown && try_to_draw) {
 	
@@ -302,9 +304,10 @@ public:
 	draw_cooldown = false;
 	
       } else {
+
 	
-	std::this_thread::sleep_for(std::chrono::milliseconds(5));
-	frames_drawn++;
+	//std::this_thread::sleep_for(std::chrono::milliseconds(5));
+	//	frames_drawn++;
 	
       }
       
@@ -513,9 +516,9 @@ public:
     
     for(auto mesh_to_render : loaded_models) {
                   
-      matRotZ = matrix_make_rotate_z(mesh_to_render.fThetaZ);
-      matRotX = matrix_make_rotate_x(mesh_to_render.fThetaX);
-      matRotY = matrix_make_rotate_y(mesh_to_render.fThetaY);
+      matRotZ = matrix_make_rotate_z(mesh_to_render.fThetaZ*(3.1415f/180.0f));
+      matRotX = matrix_make_rotate_x(mesh_to_render.fThetaX*(3.1415f/180.0f));
+      matRotY = matrix_make_rotate_y(mesh_to_render.fThetaY*(3.1415f/180.0f));
       
       matProj = matrix_make_projection(fFov, (float)height / (float)width, 0.1f, 100.0f);
       
@@ -751,6 +754,19 @@ public:
 
     return;
   }
+
+  void load_light(unsigned int strength, float theta_x_in, float theta_y_in, float theta_z_in, float rot_x_in, float rot_y_in, float rot_z_in  ) {
+
+    model imported_model = model(import_obj_mesh("models/light_source_mesh.obj") , theta_x_in , theta_y_in , theta_z_in , rot_x_in , rot_y_in , rot_z_in);
+
+    light imported_light = light(strength , theta_x_in , theta_y_in , theta_z_in , rot_x_in , rot_y_in , rot_z_in);
+    
+    loaded_models.push_back(imported_model);
+    loaded_lights.push_back(imported_light);
+    
+    return;
+  }
+  
   
   void run() {
 
@@ -987,6 +1003,7 @@ private:
 
   //data structure to hold abstracted models
   std::vector<model> loaded_models;
+  std::vector<light> loaded_lights;
   
 };
 
@@ -996,8 +1013,10 @@ int main() {
 
   //load models
   app.load_model("models/keyboard.obj",0.0f,0.0f,0.0f,0.0f,0.0f,0.0f);
-  app.load_model("models/floor.obj",90.0f,0.0f,10.0f,0.0f,-10.0f,0.0f);
+  //  app.load_model("models/floor.obj", 180.0f,0.0f,10.0f,0.0f,18.0f,0.0f);
 
+  app.load_light(100,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f);
+  
   //start engine
   app.run();
   return 0;
