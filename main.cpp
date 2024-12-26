@@ -222,8 +222,8 @@ public:
 
     auto start_time = std::chrono::steady_clock::now();
     
-    while(true) {      
-
+    while(true) {            
+      
       auto cur_time = std::chrono::steady_clock::now();
 
       auto elapsed_seconds = std::chrono::duration_cast<std::chrono::seconds>(cur_time - start_time).count();
@@ -294,7 +294,23 @@ public:
       }
 
       	render_screen();
-      
+
+	//+++++++++++++++++++++++++++
+
+	loaded_lights[0].fPosition_X = std::sin(time/100) * 8;
+	loaded_models[1].fPosition_X = std::sin(time/100) * 8;
+
+	loaded_lights[1].fPosition_X = std::sin(time2/80) * 9;
+	loaded_models[2].fPosition_X = std::sin(time2/80) * 9;
+
+	printf("runtime: %f",time);
+
+	time2++;
+	
+	time++;
+	
+	//+++++++++++++++++++++++++++
+	
       if(!draw_cooldown && try_to_draw) {
 	
         draw_cooldown = true;
@@ -566,6 +582,9 @@ public:
 	  */
 
 	  //tjlight
+
+	  unsigned long col_rgb_towrite = 0;
+	  
 	  for(auto i_light : loaded_lights) {
 
 	    if(i_light.type == FACE_SHADE) { 
@@ -576,8 +595,8 @@ public:
 	      
 	      float delta_to_light = normal.x * i_light.fPosition_X + normal.y * i_light.fPosition_Y + normal.z * i_light.fPosition_Z;
 	      
-	      triTransformed.col_rgb  = float_to_rgb_grayscale( delta_to_light ); 
-
+	      col_rgb_towrite = delta_to_light;
+	      
 	    }
 
 	    if(i_light.type == FACE_SHADE_DISTANCE) {
@@ -596,12 +615,17 @@ public:
               if(delta_to_light > 0.5f){		
 		normalized_light_strength = normalized_light_strength * 0.5f;
 	      }
-	      
-	      triTransformed.col_rgb  = float_to_rgb_grayscale( normalized_light_strength ); 
+
+	      col_rgb_towrite = col_rgb_towrite + normalized_light_strength;
 	      
 	    }
 
 	  }
+
+	  if (col_rgb_towrite > 1.0f)
+	    col_rgb_towrite = 1.0f;
+	  
+	  triTransformed.col_rgb  = float_to_rgb_grayscale( col_rgb_towrite ); 
 	  
 	  // world -> view
 	  triViewed.p[0] = matrix_multiply_vector(view_mat, triTransformed.p[0]);
@@ -958,7 +982,11 @@ public:
   
   
 private:
-
+  
+  //buffer ovrflow speedrun
+  float time = 0;
+  float time2 = 0;
+  
   float change_rate = 0.15f;
   
   bool wireframe_active = false;
@@ -1043,10 +1071,11 @@ int main() {
   XlibApp app(1920, 1080);
 
   //load models
-  //  app.load_model("models/keyboard.obj",0.0f,0.0f,0.0f,0.0f,0.0f,0.0f);
-  app.load_model("models/floor_mid_res.obj", 180.0f,0.0f,10.0f,0.0f,18.0f,0.0f);
+  app.load_model("models/keyboard.obj",0.0f,0.0f,0.0f,0.0f,0.0f,0.0f);
+  //  app.load_model("models/floor_mid_res.obj", 180.0f,0.0f,10.0f,0.0f,18.0f,0.0f);
 
-  app.load_light(40,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,FACE_SHADE_DISTANCE);
+  app.load_light(8,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,FACE_SHADE_DISTANCE);
+  app.load_light(8,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,FACE_SHADE_DISTANCE);
   
   //start engine
   app.run();
