@@ -1,5 +1,7 @@
+#include <streambuf>
 #define FILL_COLOR 0xAA22BB
 #define BORDER_COLOR 0x000000
+#define GLOBAL_ILLUMINATION_VALUE 0.1f
 
 #include <X11/X.h>
 #include <X11/Xlib.h>
@@ -8,6 +10,7 @@
 #include <iostream>
 #include <vector>
 #include "math.h"
+#include <cmath>
 #include <fstream>
 #include <strstream>
 #include <algorithm>
@@ -462,7 +465,7 @@ public:
   
   unsigned long float_to_rgb_grayscale(float value) {
 
-    if (value < 0.0f) value = 0.0f;
+    if (value < GLOBAL_ILLUMINATION_VALUE) value = GLOBAL_ILLUMINATION_VALUE;
     if (value > 1.0f) value = 1.0f;
        
     unsigned char grayValue = static_cast<unsigned char>(value * 255);
@@ -499,16 +502,7 @@ public:
   }
   
   void render_screen() {
-    
-    int x, y; 
-    unsigned int border_width, depth;
-    
-    if (XGetGeometry(display, window, &root, &x, &y, &width, &height, &border_width, &depth)) {
-      std::cout << "got win geom" << std::endl;
-    } else {
-      std::cerr << "Failed to get window geometry" << std::endl;
-    }        
-    
+        
     auto filter_time = std::chrono::high_resolution_clock::now();
     
     std::vector<triangle> v_want_to_draw;
@@ -564,7 +558,8 @@ public:
 	vec3d camera_ray = vector_Sub(triTransformed.p[0], camera);
 	
 	if( vector_DotProduct(normal, camera_ray) < 0.0f ) {
-	  /*
+
+	  /* not sure if this is shit impl but it is what it is
 	  vec3d light_source = { 0.0f, 5.0f, -1.0f };
 	  light_source = vector_Normalise(light_source);
 	  float dp_light = normal.x * light_source.x + normal.y * light_source.y + normal.z * light_source.z;
@@ -572,15 +567,40 @@ public:
 
 	  //tjlight
 	  for(auto i_light : loaded_lights) {
-	    
-	    vec3d light_location = i_light.get_light_source();
 
-	    vector_Normalise(light_location);
-	    
-	    float to_light = normal.x * i_light.fPosition_X + normal.y * i_light.fPosition_Y + normal.z * i_light.fPosition_Z;
-	    
-	    triTransformed.col_rgb  = float_to_rgb_grayscale( to_light ); 
-	    
+	    if(i_light.type == FACE_SHADE) { 
+
+	      vec3d light_location = i_light.get_light_source();
+	      
+	      vector_Normalise(light_location);
+	      
+	      float delta_to_light = normal.x * i_light.fPosition_X + normal.y * i_light.fPosition_Y + normal.z * i_light.fPosition_Z;
+	      
+	      triTransformed.col_rgb  = float_to_rgb_grayscale( delta_to_light ); 
+
+	    }
+
+	    if(i_light.type == FACE_SHADE_DISTANCE) {
+	      
+	      float distance_to_light = std::sqrt(std::pow((tri.p[0].x - i_light.fPosition_X) , 2 ) + std::pow((tri.p[0].y - i_light.fPosition_Y) , 2 ) + std::pow( ( tri.p[0].z - i_light.fPosition_Z) , 2 ));
+	      
+	      if(distance_to_light > i_light.strength){
+		triTransformed.col_rgb  = float_to_rgb_grayscale( 0x000000 ); 
+                continue;
+	      }
+
+	      float normalized_light_strength = 1-(0.001f + (( 0.999f - 0.001f ) / i_light.strength ) * distance_to_light); 
+
+	      float delta_to_light = normal.x * i_light.fPosition_X + normal.y * i_light.fPosition_Y + normal.z * i_light.fPosition_Z;
+
+              if(delta_to_light > 0.5f){		
+		normalized_light_strength = normalized_light_strength * 0.5f;
+	      }
+	      
+	      triTransformed.col_rgb  = float_to_rgb_grayscale( normalized_light_strength ); 
+	      
+	    }
+
 	  }
 	  
 	  // world -> view
@@ -766,11 +786,11 @@ public:
     return;
   }
 
-  void load_light(unsigned int strength, float pos_x_in, float pos_y_in, float pos_z_in, float rot_x_in, float rot_y_in, float rot_z_in  ) {
+  void load_light(unsigned int strength, float pos_x_in, float pos_y_in, float pos_z_in, float rot_x_in, float rot_y_in, float rot_z_in  , available_light_types type) {
 
     model imported_model = model(import_obj_mesh("models/light_source_mesh.obj") , rot_x_in , rot_y_in , rot_z_in , pos_x_in , pos_y_in , pos_z_in);
 
-    light imported_light = light(strength , rot_x_in , rot_y_in , rot_z_in , pos_x_in , pos_y_in , pos_z_in);
+    light imported_light = light(strength , rot_x_in , rot_y_in , rot_z_in , pos_x_in , pos_y_in , pos_z_in, type);
     
     loaded_models.push_back(imported_model);
     loaded_lights.push_back(imported_light);
@@ -1023,10 +1043,10 @@ int main() {
   XlibApp app(1920, 1080);
 
   //load models
-  app.load_model("models/keyboard.obj",0.0f,0.0f,0.0f,0.0f,0.0f,0.0f);
-  //  app.load_model("models/floor.obj", 180.0f,0.0f,10.0f,0.0f,18.0f,0.0f);
+  //  app.load_model("models/keyboard.obj",0.0f,0.0f,0.0f,0.0f,0.0f,0.0f);
+  app.load_model("models/floor_mid_res.obj", 180.0f,0.0f,10.0f,0.0f,18.0f,0.0f);
 
-  app.load_light(100,10.0f,5.0f,-1.0f,0.0f,0.0f,0.0f);
+  app.load_light(40,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,FACE_SHADE_DISTANCE);
   
   //start engine
   app.run();
