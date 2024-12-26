@@ -289,7 +289,6 @@ public:
       if(draw_cooldown) {
 	std::this_thread::sleep_for(std::chrono::milliseconds(50));
 	draw_cooldown = false;
-	printf("no \n");
 	
       }
 
@@ -297,13 +296,15 @@ public:
 
 	//+++++++++++++++++++++++++++
 
-	loaded_lights[0].fPosition_X = std::sin(time/100) * 8;
-	loaded_models[1].fPosition_X = std::sin(time/100) * 8;
+	loaded_lights[0].fPosition_X = std::sin(time/100) * 4;
+	loaded_models[1].fPosition_X = std::sin(time/100) * 4;
+	loaded_lights[0].fPosition_Z = std::cos(time/100) * 4;
+	loaded_models[1].fPosition_Z = std::cos(time/100) * 4;
 
-	loaded_lights[1].fPosition_X = std::sin(time2/80) * 9;
-	loaded_models[2].fPosition_X = std::sin(time2/80) * 9;
-
-	printf("runtime: %f",time);
+	loaded_lights[1].fPosition_X = std::sin(time2/80) * 3;
+	loaded_models[2].fPosition_X = std::sin(time2/80) * 3;
+	loaded_lights[1].fPosition_Y = std::cos(time2/80) * 3;
+	loaded_models[2].fPosition_Y = std::cos(time2/80) * 3;
 
 	time2++;
 	
@@ -315,8 +316,6 @@ public:
 	
         draw_cooldown = true;
 	try_to_draw = false;
-	
-	printf("yes \n");
 	
 	render_screen();
 
@@ -334,7 +333,6 @@ public:
       
       if((try_move_backward || try_move_down || try_move_up || try_move_foreward || try_move_left || try_move_right || try_rotate_left || try_rotate_right))
 	{
-	  printf("tryna rtender screen \n");
 	  render_screen();
 	}
 
@@ -583,7 +581,7 @@ public:
 
 	  //tjlight
 
-	  unsigned long col_rgb_towrite = 0;
+	  float col_rgb_towrite = 0;
 	  
 	  for(auto i_light : loaded_lights) {
 
@@ -611,19 +609,17 @@ public:
 	      float normalized_light_strength = 1-(0.001f + (( 0.999f - 0.001f ) / i_light.strength ) * distance_to_light); 
 
 	      float delta_to_light = normal.x * i_light.fPosition_X + normal.y * i_light.fPosition_Y + normal.z * i_light.fPosition_Z;
-
-              if(delta_to_light > 0.5f){		
-		normalized_light_strength = normalized_light_strength * 0.5f;
-	      }
-
+             
+	      normalized_light_strength = normalized_light_strength * delta_to_light;
+	      
 	      col_rgb_towrite = col_rgb_towrite + normalized_light_strength;
 	      
 	    }
 
 	  }
 
-	  if (col_rgb_towrite > 1.0f)
-	    col_rgb_towrite = 1.0f;
+	  if (col_rgb_towrite > 0.99f)
+	    col_rgb_towrite = 0.99f;
 	  
 	  triTransformed.col_rgb  = float_to_rgb_grayscale( col_rgb_towrite ); 
 	  
@@ -792,8 +788,6 @@ public:
     XSync(display, False);
 	
     // SWAPPING BUFFERS!!!??
-
-    printf("frame drawn!\n");
     
     frames_drawn++;   
     
@@ -801,9 +795,9 @@ public:
     
   }    
 
-  void load_model(std::string to_load, float theta_x_in, float theta_y_in, float theta_z_in, float rot_x_in, float rot_y_in, float rot_z_in  ) {
+  void load_model(std::string to_load, float pos_x_in, float pos_y_in, float pos_z_in, float rot_x_in, float rot_y_in, float rot_z_in  ) {
 
-    model imported_model = model(import_obj_mesh(to_load) , theta_x_in , theta_y_in , theta_z_in , rot_x_in , rot_y_in , rot_z_in);
+    model imported_model = model(import_obj_mesh(to_load) , pos_x_in , pos_y_in , pos_z_in , rot_x_in , rot_y_in , rot_z_in);
     
     loaded_models.push_back(imported_model);
 
@@ -848,10 +842,8 @@ public:
     while (true) {
 
       // pixmaps suck :(
-      
-      XNextEvent(display, &event);
 
-      printf("waiting for next event \n");
+      XNextEvent(display, &event);
       
       if (event.type == Expose) {
 	
@@ -1071,11 +1063,11 @@ int main() {
   XlibApp app(1920, 1080);
 
   //load models
-  app.load_model("models/keyboard.obj",0.0f,0.0f,0.0f,0.0f,0.0f,0.0f);
-  //  app.load_model("models/floor_mid_res.obj", 180.0f,0.0f,10.0f,0.0f,18.0f,0.0f);
+  app.load_model("models/keyboard.obj", 0.0f , 0.0f , 0.0f , 0.0f , 0.0f , 0.0f );
+  app.load_model("models/floor.obj", 0.0f , 1.0f , 0.0f , 180.0f , 0.0f , 0.0f );
 
-  app.load_light(8,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,FACE_SHADE_DISTANCE);
-  app.load_light(8,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,FACE_SHADE_DISTANCE);
+  app.load_light(5,-3.0f,0.0f,-3.0f,0.0f,0.0f,0.0f,FACE_SHADE_DISTANCE);
+  app.load_light(5,-3.0f,0.0f,0.0f,0.0f,0.0f,0.0f,FACE_SHADE_DISTANCE);
   
   //start engine
   app.run();
