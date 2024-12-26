@@ -43,4 +43,12 @@ public:
           fPosition_Z(positionZ) {
     }  
 
+  vec3d get_light_source() {
+
+    vec3d to_output = {fPosition_X, fPosition_Y, fPosition_Z};
+    
+    return to_output;
+
+  }
+  
 };

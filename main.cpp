@@ -460,17 +460,16 @@ public:
       (static_cast<unsigned int>(b));
   }
   
-  unsigned long float_to_rgb_grayscale(float input) {
+  unsigned long float_to_rgb_grayscale(float value) {
 
-    unsigned long output;
+    if (value < 0.0f) value = 0.0f;
+    if (value > 1.0f) value = 1.0f;
+       
+    unsigned char grayValue = static_cast<unsigned char>(value * 255);
 
-    unsigned long tmp;
-    
-    tmp = ((255) / 1.0f) * (input);
-      
-    output = construct_rgb_value(tmp,tmp,tmp);
-   
-    return output;
+    unsigned long rgb = (255 << 24) | (grayValue << 16) | (grayValue << 8) | grayValue;
+
+    return rgb;
 
   }
   
@@ -565,12 +564,24 @@ public:
 	vec3d camera_ray = vector_Sub(triTransformed.p[0], camera);
 	
 	if( vector_DotProduct(normal, camera_ray) < 0.0f ) {
-	  
+	  /*
 	  vec3d light_source = { 0.0f, 5.0f, -1.0f };
 	  light_source = vector_Normalise(light_source);
 	  float dp_light = normal.x * light_source.x + normal.y * light_source.y + normal.z * light_source.z;
-	  
-	  triTransformed.col_rgb  = float_to_rgb_grayscale( dp_light );
+	  */
+
+	  //tjlight
+	  for(auto i_light : loaded_lights) {
+	    
+	    vec3d light_location = i_light.get_light_source();
+
+	    vector_Normalise(light_location);
+	    
+	    float to_light = normal.x * i_light.fPosition_X + normal.y * i_light.fPosition_Y + normal.z * i_light.fPosition_Z;
+	    
+	    triTransformed.col_rgb  = float_to_rgb_grayscale( to_light ); 
+	    
+	  }
 	  
 	  // world -> view
 	  triViewed.p[0] = matrix_multiply_vector(view_mat, triTransformed.p[0]);
@@ -755,11 +766,11 @@ public:
     return;
   }
 
-  void load_light(unsigned int strength, float theta_x_in, float theta_y_in, float theta_z_in, float rot_x_in, float rot_y_in, float rot_z_in  ) {
+  void load_light(unsigned int strength, float pos_x_in, float pos_y_in, float pos_z_in, float rot_x_in, float rot_y_in, float rot_z_in  ) {
 
-    model imported_model = model(import_obj_mesh("models/light_source_mesh.obj") , theta_x_in , theta_y_in , theta_z_in , rot_x_in , rot_y_in , rot_z_in);
+    model imported_model = model(import_obj_mesh("models/light_source_mesh.obj") , rot_x_in , rot_y_in , rot_z_in , pos_x_in , pos_y_in , pos_z_in);
 
-    light imported_light = light(strength , theta_x_in , theta_y_in , theta_z_in , rot_x_in , rot_y_in , rot_z_in);
+    light imported_light = light(strength , rot_x_in , rot_y_in , rot_z_in , pos_x_in , pos_y_in , pos_z_in);
     
     loaded_models.push_back(imported_model);
     loaded_lights.push_back(imported_light);
@@ -1015,7 +1026,7 @@ int main() {
   app.load_model("models/keyboard.obj",0.0f,0.0f,0.0f,0.0f,0.0f,0.0f);
   //  app.load_model("models/floor.obj", 180.0f,0.0f,10.0f,0.0f,18.0f,0.0f);
 
-  app.load_light(100,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f);
+  app.load_light(100,10.0f,5.0f,-1.0f,0.0f,0.0f,0.0f);
   
   //start engine
   app.run();
