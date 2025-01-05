@@ -1,8 +1,10 @@
-# frostengine!!!
+# frostengine!
 
- Its an engine!!! It works, its single threaded, but still performs pretty well ngl.
+ Its an engine! It works, its single threaded, but still performs pretty well ngl.
  
  its written in plain cpp20 and x11 to draw indiviual pixels to a window. the rest is entirely made from scratch.
+
+ also no, multi threading it would not rly increase performance, cause im heavily limited by x11 being incredibly slow at drawing lines (see the performance statistics in the renderer's top left)
  
  # features
  
